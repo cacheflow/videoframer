@@ -50,6 +50,7 @@ const analyzeVideo = () => {
   eventEmitter.on("start", async () => {
     try {
       const startTime = performance.now();
+      eventEmitter.emit("processing_started", { startTime });
       const dirPath = "/Users/lexalexander/Documents/framewise/frames";
       await fs.promises.rmdir(dirPath, { recursive: true });
       const ffmpegProcess = new ffmpeg(
@@ -66,9 +67,8 @@ const analyzeVideo = () => {
             },
             async (error, files) => {
               
-              const emitter = new EventEmitter();
               const entries = fs.readdirSync(dirPath, { withFileTypes: true });
-              const arrEntries = Array.from(entries).slice(0, 5);
+              const arrEntries = Array.from(entries).slice(0, 10);
               const filePaths = arrEntries.map((entry) =>
                 path.join(dirPath, entry.name),
               );
@@ -84,9 +84,8 @@ const analyzeVideo = () => {
                 totalFrames: totalFrames,
                 totalBatches: totalBatches,
               };  
-              console.log('progress is ', progress)
 
-              emitter.emit("progress", {
+              eventEmitter.emit("progress", {
                 totalFrames: totalFrames,
                 totalBatches: totalBatches,
               });
@@ -104,73 +103,51 @@ const analyzeVideo = () => {
               let currentIndex = 0;
 
               while (prearedFiles.length !== 0) {
-                const currentBatch = prearedFiles.shift();
-                const contentArr = currentBatch.map((el, index) => {
-                  return [
-                    {
-                      type: "input_text",
-                      text: `Frame ${(currentIndex += 1)} (${el.filename})`,
-                    },
-                    {
-                      type: "input_image",
-                      file_id: el.id,
-                    },
-                  ];
-                });
-                preparedBatches.push(...contentArr);
+                const uploadedBatch = prearedFiles.shift();
+
+                const content = uploadedBatch.flatMap((file) => [
+                  {
+                    type: "input_text",
+                    text: `Frame ${++currentIndex} (${file.filename})`,
+                  },
+                  {
+                    type: "input_image",
+                    file_id: file.id,
+                  },
+                ]);
+                console.log("Prepared content for batch:", content);
+                preparedBatches.push(content);
               }
 
-              const responses = {};
+              for (const [batchIndex, content] of preparedBatches.entries()) {
+                const response = await createResponse(content);
 
-              const createResponses = (batches) => {
-                return batches.map(
-                  async (input) => await createResponse(input),
-                );
-              };
-
-              let batchIndex = 0;
-
-              while (preparedBatches.length !== 0) {
-                const currentBatch = preparedBatches.splice(0, 5);
-                const responsesBatch = await Promise.all(
-                  createResponses(currentBatch),
-                );
-                // console.log('emitting ', {
-                //   batchIndex: batchIndex,
-                //   currentBatch: JSON.stringify(currentBatch),
-                //   responsesBatch: responsesBatch,
-                // })
-                emitter.emit("processed", {
-                  batchIndex: batchIndex,
-                  currentBatch: currentBatch,
-                  processedFrames: responsesBatch,
+                eventEmitter.emit("processed", {
+                  batchIndex,
+                  frameCount: content.length / 2,
+                  processedFrames: response,
+                  outputText: response.output_text,
                 });
-                batchIndex += 1;
               }
             },
           )
-          .catch((err) => {
-            console.log("err is ", err);
-          });
       });
-      const endTime = performance.now();
-      eventEmitter.emit('completed', {
-        startTime: startTime,
-        endTime: endTime,
-        totalTimee: endTime - startTime,
-      })
       return {
         hello: 'world'
       }
-    } catch (err) {
+    } 
+
+    catch (err) {
       console.log("err is ", err);
     }
   });
+
   return eventEmitter;
 };
 
 
 const analyzeVideoEmitter = analyzeVideo();
+
 analyzeVideoEmitter.on('progress', (data) => {
   console.log('Progress:', data);
 });
@@ -181,7 +158,14 @@ analyzeVideoEmitter.on('processed', (data) => {
 
 
 analyzeVideoEmitter.on('completed', (data) => {
-  console.log("data is ", data)
+  console.log("data is completed ", data)
+})
+
+analyzeVideoEmitter.on('wow', (data) => {
+  console.log("", data)
 })
 
 analyzeVideoEmitter.emit('start');
+analyzeVideoEmitter.on('processing_started', (data) => {
+  console.log('Processing started:', data);
+});
