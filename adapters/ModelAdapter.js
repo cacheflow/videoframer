@@ -1,5 +1,5 @@
 import labResolver from "../resolvers/labResolver";
-import ChatGPTAdapter from "../ChatGPTAdapter.js";
+import ChatGPTAdapter from "./ChatGPTAdapter.js";
 
 class ModelAdapter {
     constructor({
