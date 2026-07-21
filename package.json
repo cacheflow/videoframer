@@ -1,13 +1,27 @@
 {
   "name": "framewise",
   "version": "1.0.0",
-  "description": "",
+  "description": "Analyze videos with multimodal AI, one frame at a time.",
   "license": "ISC",
   "author": "",
   "type": "module",
-  "main": "app.js",
+  "main": "./dist/app.js",
+  "types": "./dist/app.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/app.d.ts",
+      "import": "./dist/app.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "build": "node scripts/build.js",
+    "prepublishOnly": "npm test && npm run build",
+    "test": "npm run build && node --test",
+    "typecheck": "tsc --project tsconfig.build.json --noEmit"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.112.3",
@@ -15,5 +29,10 @@
     "ffmpeg": "^0.0.4",
     "openai": "^6.47.0",
     "ytdl-core": "^4.11.5"
+  },
+  "devDependencies": {
+    "@types/ffmpeg": "^1.0.7",
+    "@types/node": "^26.1.1",
+    "typescript": "^7.0.2"
   }
 }

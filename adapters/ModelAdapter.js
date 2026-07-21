@@ -1,4 +1,3 @@
-import labResolver from "../resolvers/labResolver";
 import ChatGPTAdapter from "./ChatGPTAdapter.js";
 
 class ModelAdapter {
@@ -71,7 +70,7 @@ class ModelAdapter {
         this.apiKey = apiKey
         this.modelName = modelName
         this.loadedModel = this.resolveModel(this.modelName)
-        this.model = this.loadedModel.new({
+        this.model = new this.loadedModel({
           apiKey: this.apiKey,
           modelName: this.modelName
         })
@@ -102,12 +101,12 @@ class ModelAdapter {
 
       const modelPrefixKeys = Object.keys(this.modelPrefixRegistry)
      
-      resolveModel = modelPrefixKeys.find((modelPrefix) => {
+      const resolvedPrefix = modelPrefixKeys.find((modelPrefix) => {
         return modelName.startsWith(modelPrefix);
       })
       
-      if (resolveModel) {
-        return this.modelPrefixRegistry[resolveModel]
+      if (resolvedPrefix && this.modelPrefixRegistry[resolvedPrefix]) {
+        return this.modelPrefixRegistry[resolvedPrefix]
       }
       
       throw new Error(`Model "${modelName}" could not be resolved`);
