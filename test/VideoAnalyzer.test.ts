@@ -4,9 +4,9 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import { VideoAnalyzer } from "../app.ts";
+import { VideoAnalyzer, type VideoAnalyzerOptions, type BatchResult, type InputTextContent } from "../dist/app.js";
 
-const createAnalyzer = (overrides = {}) =>
+const createAnalyzer = (overrides: Partial<VideoAnalyzerOptions> = {}) =>
   new VideoAnalyzer({
     videoPath: "/tmp/video.mp4",
     apiKey: "test-key",
@@ -69,15 +69,15 @@ test("prepares sequential multimodal content across batches", () => {
 
 test("uploads batches sequentially and reports cumulative progress", async () => {
   const analyzer = createAnalyzer();
-  const requestedBatches: unknown[] = [];
-  const contents: unknown[] = [];
-  const progress: unknown[] = [];
+  const requestedBatches: string[][] = [];
+  const contents: any[] = [];
+  const progress: number[] = [];
 
-  analyzer.uploadFrameBatch = async (batch) => {
+  analyzer.uploadFrameBatch = async (batch: string[]) => {
     requestedBatches.push(batch);
     return batch.map((filename) => ({ id: `id-${filename}`, filename }));
   };
-  analyzer.createResponse = async (content) => {
+  analyzer.createResponse = async (content: any) => {
     contents.push(content);
     return { output_text: `response-${contents.length}` };
   };
@@ -91,7 +91,7 @@ test("uploads batches sequentially and reports cumulative progress", async () =>
     ["one.jpg", "two.jpg"],
     ["three.jpg"],
   ]);
-  assert.equal(contents[1][0].text, "Frame 3 (three.jpg)");
+  assert.equal((contents[1][0] as InputTextContent).text, "Frame 3 (three.jpg)");
   assert.deepEqual(progress, [2, 3]);
   assert.deepEqual(
     results.map(({ batchIndex, frameCount, processedFrames, outputText }) => ({
@@ -109,17 +109,17 @@ test("uploads batches sequentially and reports cumulative progress", async () =>
 
 test("runs the pipeline and emits lifecycle events", async () => {
   const analyzer = createAnalyzer({ batchSize: 2 });
-  const calls: unknown[] = [];
-  const events: unknown[] = [];
+  const calls: string[] = [];
+  const events: [string, any][] = [];
 
-  analyzer.prepareFramesDirectory = async () => calls.push("prepare");
-  analyzer.extractFrames = async () => calls.push("extract");
+  analyzer.prepareFramesDirectory = async () => { calls.push("prepare"); };
+  analyzer.extractFrames = async () => { calls.push("extract"); };
   analyzer.getFramePaths = async () => ["1.jpg", "2.jpg", "3.jpg"];
-  analyzer.uploadBatches = async ({ batches, onUpload }) => {
+  analyzer.uploadBatches = async ({ batches, onUpload }): Promise<BatchResult[]> => {
     assert.deepEqual(batches, [["1.jpg", "2.jpg"], ["3.jpg"]]);
-    onUpload({ batchIndex: 0, processedFrames: 2 });
-    onUpload({ batchIndex: 1, processedFrames: 3 });
-    return [{ outputText: "done" }];
+    onUpload?.({ batchIndex: 0, frameCount: 2, processedFrames: 2, outputText: "done" });
+    onUpload?.({ batchIndex: 1, frameCount: 1, processedFrames: 3, outputText: "done" });
+    return [{ batchIndex: 0, frameCount: 2, processedFrames: 2, outputText: "done" }];
   };
 
   analyzer.on("processing_started", (payload) =>
@@ -140,22 +140,23 @@ test("runs the pipeline and emits lifecycle events", async () => {
       .map(([, payload]) => payload.processedFrames),
     [2, 3],
   );
-  assert.equal(events.at(-1)[0], "completed");
+  assert.equal(events.at(-1)?.[0], "completed");
 });
 
 test("emits and rethrows pipeline errors", async () => {
   const analyzer = createAnalyzer();
   const expected = new Error("frame extraction failed");
-  let emitted;
+  let emitted: Error | undefined;
 
   analyzer.prepareFramesDirectory = async () => {};
   analyzer.extractFrames = async () => {
     throw expected;
   };
-  analyzer.on("error", (error) => {
+  analyzer.on("error", (error: Error) => {
     emitted = error;
   });
 
   await assert.rejects(analyzer.analyze(), expected);
   assert.equal(emitted, expected);
 });
+

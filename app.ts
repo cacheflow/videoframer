@@ -3,81 +3,26 @@ import { EventEmitter } from "node:events";
 import fs, { type ReadStream } from "node:fs";
 import path from "node:path";
 import ffmpeg from "ffmpeg";
+import type  {
+  VideoAnalyzerOptions,
+  UploadedFile,
+  BatchContent,
+  ProcessingStartedEvent,
+  ModelResponse,
+  AnalysisResult,
+  BatchResult,
+  ProcessingProgressEvent,
+  UploadBatchesOptions,
+} from "./types/app.d.ts";
 
-import ChatGPTAdapter from "./adapters/ChatGPTAdapter.js";
+import ModelAdapter from "./adapters/ModelAdapter.js";
 
 dotenv.config();
 
-export interface VideoAnalyzerOptions {
-  videoPath: string;
-  apiKey: string;
-  framesDirectory: string;
-  model?: string;
-  frameRate?: number;
-  batchSize?: number;
-  maxFrames?: number;
-}
-
-export interface UploadedFile {
-  id: string;
-  filename: string;
-}
-
-export interface InputTextContent {
-  type: "input_text";
-  text: string;
-}
-
-export interface InputImageContent {
-  type: "input_image";
-  file_id: string;
-}
-
-export type BatchContent = InputTextContent | InputImageContent;
-
-export interface ModelResponse {
-  output_text: string;
-}
-
-export interface BatchResult {
-  batchIndex: number;
-  frameCount: number;
-  processedFrames: number;
-  outputText: string;
-}
-
-export interface UploadBatchesOptions {
-  batches: string[][];
-  onUpload?: (result: BatchResult) => void;
-}
-
-export interface ProcessingStartedEvent {
-  startTime?: number;
-  totalFrames?: number;
-  totalBatches?: number;
-  processedFrames?: number;
-  processedBatches?: number;
-}
-
-export interface ProgressEvent {
-  totalFrames: number;
-  totalBatches: number;
-  processedFrames: number;
-  processedBatches: number;
-}
-
-export interface AnalysisResult {
-  startTime: number;
-  completedAt: number;
-  durationMs: number;
-  totalFrames: number;
-  totalBatches: number;
-  results: BatchResult[];
-}
 
 export class VideoAnalyzer extends EventEmitter {
   readonly model: string;
-  readonly client: ChatGPTAdapter;
+  readonly client: ModelAdapter;
   readonly videoPath: string;
   readonly framesDirectory: string;
   readonly frameRate: number;
@@ -95,7 +40,7 @@ export class VideoAnalyzer extends EventEmitter {
   }: VideoAnalyzerOptions) {
     super();
     this.model = model;
-    this.client = new ChatGPTAdapter({ apiKey, modelName: model });
+    this.client = new ModelAdapter({ apiKey, modelName: model });
     this.videoPath = videoPath;
     this.framesDirectory = framesDirectory;
     this.frameRate = frameRate;
@@ -131,7 +76,7 @@ export class VideoAnalyzer extends EventEmitter {
     const startTime = performance.now();
 
     try {
-      this.emit("processing_started", { startTime });
+      this.emit("started", { startTime });
 
       await this.prepareFramesDirectory();
       await this.extractFrames();
@@ -139,7 +84,7 @@ export class VideoAnalyzer extends EventEmitter {
       const framePaths = await this.getFramePaths();
       const batches = this.createBatches(framePaths);
 
-      this.emit("processing_started", {
+      this.emit("progress", {
         totalFrames: framePaths.length,
         totalBatches: batches.length,
         processedFrames: 0,
@@ -150,6 +95,7 @@ export class VideoAnalyzer extends EventEmitter {
         this.emit("progress", {
           totalFrames: framePaths.length,
           totalBatches: batches.length,
+          result: result,
           processedFrames: result.processedFrames,
           processedBatches: result.batchIndex + 1,
         });
@@ -305,11 +251,19 @@ export class VideoAnalyzer extends EventEmitter {
   }
 
   override on(
-    event: "processing_started",
+    event: "started",
     listener: (event: ProcessingStartedEvent) => void,
   ): this;
 
-  override on(event: "progress", listener: (event: ProgressEvent) => void): this;
+  override on(
+    event: "progress",
+    listener: (event: ProcessingProgressEvent) => void,
+  ): this;
+
+  override on(
+    event: "processing_complete",
+    listener: (event: ProcessingProgressEvent) => void,
+  ): this;
 
   override on(
     event: "completed",

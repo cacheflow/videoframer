@@ -16,7 +16,8 @@
   },
   "include": [
     "app.ts",
-    "adapters/ChatGPTAdapter.js",
+    "adapters/**/*",
+    "resolvers/**/*",
     "types/**/*.d.ts"
   ]
 }
