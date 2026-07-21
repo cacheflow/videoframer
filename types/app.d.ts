@@ -2,6 +2,7 @@
 export interface VideoAnalyzerOptions {
   videoPath: string;
   apiKey: string;
+  prompt: string;
   framesDirectory: string;
   model?: string;
   frameRate?: number;

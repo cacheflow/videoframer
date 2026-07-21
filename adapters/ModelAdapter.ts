@@ -5,12 +5,14 @@ import GeminiAdapter from "./GeminiAdapter.js";
 export interface ModelAdapterOptions {
   apiKey: string;
   modelName: string;
+  prompt: string;
 }
 
 export class ModelAdapter {
   apiKey: string;
   modelName: string;
-  loadedModel: new (options: { apiKey: string; modelName?: string }) => any;
+  prompt: string;
+  loadedModel: new (options: { apiKey: string; modelName?: string; prompt?: string }) => any;
   model: any;
 
   readonly modelRegistry: Record<string, any> = {
@@ -47,16 +49,18 @@ export class ModelAdapter {
     "gemini-": GeminiAdapter,
   };
 
-  constructor({ apiKey, modelName }: ModelAdapterOptions) {
+  constructor({ apiKey, modelName, prompt }: ModelAdapterOptions) {
     this.ensureAPIKey(apiKey);
     this.ensureModelName(modelName);
 
     this.apiKey = apiKey;
     this.modelName = modelName;
+    this.prompt = prompt;
     this.loadedModel = this.resolveModel(this.modelName);
     this.model = new this.loadedModel({
       apiKey: this.apiKey,
       modelName: this.modelName,
+      prompt: this.prompt,
     });
   }
 

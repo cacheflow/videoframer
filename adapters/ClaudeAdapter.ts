@@ -20,20 +20,23 @@ export interface UploadedFile {
 class ClaudeAdapter {
   client: Anthropic;
   model: string;
-  instructions: string[];
+  prompt: string;
+  defaultPrompt: string[];
 
   constructor({
     apiKey,
     modelName,
+    prompt,
   }: {
     apiKey: string;
     modelName?: string;
+    prompt: string; 
   }) {
     if (apiKey === undefined || apiKey === null || apiKey === void 0) {
       throw new Error(`API key is required. You passed ${typeof apiKey}.`);
     }
 
-    this.instructions = [
+    this.defaultPrompt = [
       "You are an expert video analyst.",
       "The user will send sequential video frames.",
       "Treat them as one continuous video.",
@@ -46,6 +49,7 @@ class ClaudeAdapter {
     });
 
     this.model = modelName || "claude-3.5-sonnet";
+    this.prompt = prompt;
   }
 
   async uploadFile(file: ReadStream | File | any): Promise<UploadedFile> {
@@ -92,6 +96,7 @@ class ClaudeAdapter {
   }
 
   async analyze(content: BatchContent[]) {
+
     const formattedContent = content.map((item) => {
       if (item.type === "input_text") {
         return {
@@ -111,10 +116,12 @@ class ClaudeAdapter {
       }
     });
 
+    const prompt = this.prompt || this.defaultPrompt;
+
     const response = await this.client.messages.create({
       model: this.model,
       max_tokens: 1024,
-      system: this.instructions.join(" "),
+      system: Array.isArray(prompt) ? prompt.join(" ") : prompt,
       messages: [
         {
           role: "user",

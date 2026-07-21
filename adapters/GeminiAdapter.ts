@@ -23,20 +23,23 @@ export interface UploadedFile {
 class GeminiAdapter {
   ai: GoogleGenAI;
   model: string;
-  instructions: string[];
+  prompt: string;
+  defaultPrompt: string[];
 
   constructor({
     apiKey,
     modelName,
+    prompt,
   }: {
     apiKey: string;
     modelName?: string;
+    prompt: string;
   }) {
     if (apiKey === undefined || apiKey === null || apiKey === void 0) {
       throw new Error(`API key is required. You passed ${typeof apiKey}.`);
     }
 
-    this.instructions = [
+    this.defaultPrompt = [
       "You are an expert video analyst.",
       "The user will send sequential video frames.",
       "Treat them as one continuous video.",
@@ -46,6 +49,7 @@ class GeminiAdapter {
 
     this.ai = new GoogleGenAI({ apiKey });
     this.model = modelName || "gemini-2.5-flash";
+    this.prompt = prompt;
   }
 
   async uploadFile(file: ReadStream | File | any): Promise<UploadedFile> {
@@ -92,6 +96,7 @@ class GeminiAdapter {
 
   async analyze(content: BatchContent[]) {
     const parts: Array<{ text: string } | { inlineData: { mimeType: string; data: string } }> = [];
+    const prompt = this.prompt || this.defaultPrompt;
 
     for (const item of content) {
       if (item.type === "input_text") {
@@ -112,7 +117,7 @@ class GeminiAdapter {
       model: this.model,
       contents: parts,
       config: {
-        systemInstruction: this.instructions.join(" "),
+        systemInstruction: Array.isArray(prompt) ? prompt.join(" ") : prompt,
       },
     });
 

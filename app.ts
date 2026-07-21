@@ -24,6 +24,7 @@ export class VideoAnalyzer extends EventEmitter {
   readonly model: string;
   readonly client: ModelAdapter;
   readonly videoPath: string;
+  readonly prompt: string;
   readonly framesDirectory: string;
   readonly frameRate: number;
   readonly batchSize: number;
@@ -33,6 +34,7 @@ export class VideoAnalyzer extends EventEmitter {
     videoPath,
     apiKey,
     framesDirectory,
+    prompt,
     model = "gpt-5.6",
     frameRate = 1,
     batchSize = 5,
@@ -40,10 +42,11 @@ export class VideoAnalyzer extends EventEmitter {
   }: VideoAnalyzerOptions) {
     super();
     this.model = model;
-    this.client = new ModelAdapter({ apiKey, modelName: model });
+    this.client = new ModelAdapter({ apiKey, modelName: model, prompt });
     this.videoPath = videoPath;
     this.framesDirectory = framesDirectory;
     this.frameRate = frameRate;
+    this.prompt = prompt;
     this.batchSize = batchSize;
     this.maxFrames = maxFrames;
 

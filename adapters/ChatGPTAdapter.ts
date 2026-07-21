@@ -14,20 +14,23 @@ type BatchContent =
 class ChatGPTAdapter {
     client: OpenAI;
     model: string;
-    instructions: string[];
+    prompt: string;
+    defaultPrompt: string[];
     
     constructor({
       apiKey,
       modelName,
+      prompt,
     }: {
       apiKey: string;
       modelName?: string;
+      prompt: string;
     }) {
       if (apiKey === undefined || apiKey === null || apiKey === void 0) {
         throw new Error(`API key is required. You passed ${typeof apiKey}.`);
       }
 
-      this.instructions = [
+      this.defaultPrompt = [
         "You are an expert video analyst.",
         "The user will send sequential video frames.",
         "Treat them as one continuous video.",
@@ -40,12 +43,14 @@ class ChatGPTAdapter {
       });
 
       this.model = modelName || "gpt-5.6";
+      this.prompt = prompt;
     }
 
     analyze(content: BatchContent[]) {
+      const prompt = this.prompt || this.defaultPrompt;
       return this.client.responses.create({
         model: this.model,
-        instructions: this.instructions.join(" "),
+        instructions: Array.isArray(prompt) ? prompt.join(' ') : prompt,
         input: [ 
           {
             role: "user",
