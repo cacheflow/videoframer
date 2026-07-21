@@ -45,6 +45,7 @@ class ChatGPTAdapter {
     analyze(content: BatchContent[]) {
       return this.client.responses.create({
         model: this.model,
+        detail: '',
         instructions: this.instructions.join(" "),
         input: [ 
           {
