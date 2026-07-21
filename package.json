@@ -20,6 +20,8 @@
   "scripts": {
     "build": "node scripts/build.js",
     "prepublishOnly": "npm test && npm run build",
+    "secrets:scan": "gitleaks git --redact --verbose",
+    "secrets:scan:staged": "gitleaks git --staged --redact --verbose",
     "test": "npm run build && node --test",
     "typecheck": "tsc --project tsconfig.build.json --noEmit"
   },
