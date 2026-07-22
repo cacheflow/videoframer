@@ -4,7 +4,12 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import { VideoAnalyzer, type VideoAnalyzerOptions, type BatchResult, type InputTextContent } from "../dist/app.js";
+import {
+  VideoAnalyzer,
+  type VideoAnalyzerOptions,
+  type BatchResult,
+  type InputTextContent,
+} from "../dist/app.ts";
 
 const createAnalyzer = (overrides: Partial<VideoAnalyzerOptions> = {}) =>
   new VideoAnalyzer({
@@ -48,7 +53,7 @@ test("prepares sequential multimodal content across batches", () => {
   const analyzer = createAnalyzer();
 
   assert.deepEqual(
-    analyzer.prepareBatchContent(
+    analyzer.prepareContentBatch(
       [
         { id: "file-1", filename: "one.jpg" },
         { id: "file-2", filename: "two.jpg" },
@@ -84,14 +89,14 @@ test("uploads batches sequentially and reports cumulative progress", async () =>
 
   const results = await analyzer.uploadBatches({
     batches: [["one.jpg", "two.jpg"], ["three.jpg"]],
-    onUpload: (result) => progress.push(result.processedFrames),
+    onUpload: (result: BatchResult) => progress.push(result.processedFrames),
   });
 
-  assert.deepEqual(requestedBatches, [
-    ["one.jpg", "two.jpg"],
-    ["three.jpg"],
-  ]);
-  assert.equal((contents[1][0] as InputTextContent).text, "Frame 3 (three.jpg)");
+  assert.deepEqual(requestedBatches, [["one.jpg", "two.jpg"], ["three.jpg"]]);
+  assert.equal(
+    (contents[1][0] as InputTextContent).text,
+    "Frame 3 (three.jpg)",
+  );
   assert.deepEqual(progress, [2, 3]);
   assert.deepEqual(
     results.map(({ batchIndex, frameCount, processedFrames, outputText }) => ({
@@ -101,8 +106,18 @@ test("uploads batches sequentially and reports cumulative progress", async () =>
       outputText,
     })),
     [
-      { batchIndex: 0, frameCount: 2, processedFrames: 2, outputText: "response-1" },
-      { batchIndex: 1, frameCount: 1, processedFrames: 3, outputText: "response-2" },
+      {
+        batchIndex: 0,
+        frameCount: 2,
+        processedFrames: 2,
+        outputText: "response-1",
+      },
+      {
+        batchIndex: 1,
+        frameCount: 1,
+        processedFrames: 3,
+        outputText: "response-2",
+      },
     ],
   );
 });
@@ -112,34 +127,56 @@ test("runs the pipeline and emits lifecycle events", async () => {
   const calls: string[] = [];
   const events: [string, any][] = [];
 
-  analyzer.prepareFramesDirectory = async () => { calls.push("prepare"); };
-  analyzer.extractFrames = async () => { calls.push("extract"); };
+  analyzer.prepareFramesDirectory = async () => {
+    calls.push("prepare");
+  };
+  analyzer.extractFrames = async () => {
+    calls.push("extract");
+  };
   analyzer.getFramePaths = async () => ["1.jpg", "2.jpg", "3.jpg"];
-  analyzer.uploadBatches = async ({ batches, onUpload }): Promise<BatchResult[]> => {
+  analyzer.uploadBatches = async ({
+    batches,
+    onUpload,
+  }): Promise<BatchResult[]> => {
     assert.deepEqual(batches, [["1.jpg", "2.jpg"], ["3.jpg"]]);
-    onUpload?.({ batchIndex: 0, frameCount: 2, processedFrames: 2, outputText: "done" });
-    onUpload?.({ batchIndex: 1, frameCount: 1, processedFrames: 3, outputText: "done" });
-    return [{ batchIndex: 0, frameCount: 2, processedFrames: 2, outputText: "done" }];
+    onUpload?.({
+      batchIndex: 0,
+      frameCount: 2,
+      processedFrames: 2,
+      outputText: "done",
+    });
+    onUpload?.({
+      batchIndex: 1,
+      frameCount: 1,
+      processedFrames: 3,
+      outputText: "done",
+    });
+    return [
+      { batchIndex: 0, frameCount: 2, processedFrames: 2, outputText: "done" },
+    ];
   };
 
-  analyzer.on("processing_started", (payload) =>
-    events.push(["processing_started", payload]),
-  );
+  analyzer.on("started", (payload) => events.push(["started", payload]));
   analyzer.on("progress", (payload) => events.push(["progress", payload]));
   analyzer.on("completed", (payload) => events.push(["completed", payload]));
 
   const result = await analyzer.analyze();
-
+  const startedEvents = events.filter(([name]) => name === "started");
+  const getEvents = (name: string) =>
+    events.filter(([eventName]) => eventName === name);
+  const processedFrames = getEvents("progress").map(
+    ([, payload]) => payload.processedFrames,
+  );
   assert.deepEqual(calls, ["prepare", "extract"]);
   assert.equal(result.totalFrames, 3);
   assert.equal(result.totalBatches, 2);
-  assert.equal(events.filter(([name]) => name === "processing_started").length, 2);
-  assert.deepEqual(
-    events
-      .filter(([name]) => name === "progress")
-      .map(([, payload]) => payload.processedFrames),
-    [2, 3],
-  );
+
+  assert.equal(startedEvents.length, 1);
+  assert.equal(getEvents("progress").length, 3);
+  assert.equal(getEvents("started").length, 1);
+  assert.equal(getEvents("started").length, 1);
+
+  assert.equal(processedFrames.length, 3);
   assert.equal(events.at(-1)?.[0], "completed");
 });
 
@@ -159,4 +196,3 @@ test("emits and rethrows pipeline errors", async () => {
   await assert.rejects(analyzer.analyze(), expected);
   assert.equal(emitted, expected);
 });
-

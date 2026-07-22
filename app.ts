@@ -3,7 +3,7 @@ import { EventEmitter } from "node:events";
 import fs, { type ReadStream } from "node:fs";
 import path from "node:path";
 import ffmpeg from "ffmpeg";
-import type  {
+import type {
   VideoAnalyzerOptions,
   UploadedFile,
   BatchContent,
@@ -19,9 +19,9 @@ import ModelAdapter from "./adapters/ModelAdapter.js";
 
 dotenv.config();
 
-
 export class VideoAnalyzer extends EventEmitter {
   readonly model: string;
+  readonly provider: string;
   readonly client: ModelAdapter;
   readonly videoPath: string;
   readonly prompt: string;
@@ -32,6 +32,7 @@ export class VideoAnalyzer extends EventEmitter {
 
   constructor({
     videoPath,
+    provider,
     apiKey,
     framesDirectory,
     prompt,
@@ -42,7 +43,13 @@ export class VideoAnalyzer extends EventEmitter {
   }: VideoAnalyzerOptions) {
     super();
     this.model = model;
-    this.client = new ModelAdapter({ apiKey, modelName: model, prompt });
+    this.provider = provider;
+    this.client = new ModelAdapter({
+      apiKey,
+      modelName: model,
+      prompt,
+      provider,
+    });
     this.videoPath = videoPath;
     this.framesDirectory = framesDirectory;
     this.frameRate = frameRate;
@@ -52,26 +59,23 @@ export class VideoAnalyzer extends EventEmitter {
 
     this.ensure({
       data: videoPath,
-      msg: `Error: It looks like videoPath is missing. You passed ${typeof videoPath}`
-    })
+      msg: `Error: It looks like videoPath is missing. You passed ${typeof videoPath}`,
+    });
 
     this.ensure({
       data: apiKey,
-      msg: `Error: It looks like apiKey is missing. You passed ${typeof apiKey}`
-    })
+      msg: `Error: It looks like apiKey is missing. You passed ${typeof apiKey}`,
+    });
 
     this.ensure({
       data: framesDirectory,
-      msg: `Error: It looks like frameDirectory is missing. You passed ${typeof framesDirectory}`
-    })
+      msg: `Error: It looks like frameDirectory is missing. You passed ${typeof framesDirectory}`,
+    });
   }
 
-  ensure({data, msg}: {
-    data: unknown
-    msg: string
-  }) {
+  ensure({ data, msg }: { data: unknown; msg: string }) {
     if (data === undefined || data === null || !data) {
-      throw new Error(`${msg}`)
+      throw new Error(`${msg}`);
     }
   }
 
@@ -116,6 +120,7 @@ export class VideoAnalyzer extends EventEmitter {
       };
 
       this.emit("completed", completed);
+
       return completed;
     } catch (error) {
       this.emit("error", error);
@@ -133,7 +138,7 @@ export class VideoAnalyzer extends EventEmitter {
 
     for (const [batchIndex, framePathsBatch] of batches.entries()) {
       const uploadedFiles = await this.uploadFrameBatch(framePathsBatch);
-      const { content, nextFrameIndex } = this.prepareBatchContent(
+      const { content, nextFrameIndex } = this.prepareContentBatch(
         uploadedFiles,
         frameIndex,
       );
@@ -177,7 +182,7 @@ export class VideoAnalyzer extends EventEmitter {
         },
         (error: Error | null) => {
           if (error) {
-            this.emit('error', error.toString())
+            this.emit("error", error.toString());
             reject(error);
             return;
           }
@@ -204,9 +209,10 @@ export class VideoAnalyzer extends EventEmitter {
 
   createBatches<T>(items: T[]): T[][] {
     const batches: T[][] = [];
+    const { batchSize } = this;
 
-    for (let index = 0; index < items.length; index += this.batchSize) {
-      batches.push(items.slice(index, index + this.batchSize));
+    for (let index = 0; index < items.length; index += batchSize) {
+      batches.push(items.slice(index, index + batchSize));
     }
 
     return batches;
@@ -226,7 +232,7 @@ export class VideoAnalyzer extends EventEmitter {
     );
   }
 
-  prepareBatchContent(
+  prepareContentBatch(
     uploadedFiles: UploadedFile[],
     initialFrameIndex = 0,
   ): { content: BatchContent[]; nextFrameIndex: number } {
@@ -260,11 +266,6 @@ export class VideoAnalyzer extends EventEmitter {
 
   override on(
     event: "progress",
-    listener: (event: ProcessingProgressEvent) => void,
-  ): this;
-
-  override on(
-    event: "processing_complete",
     listener: (event: ProcessingProgressEvent) => void,
   ): this;
 

@@ -6,13 +6,20 @@ export interface ModelAdapterOptions {
   apiKey: string;
   modelName: string;
   prompt: string;
+  provider: string;
 }
 
 export class ModelAdapter {
   apiKey: string;
   modelName: string;
   prompt: string;
-  loadedModel: new (options: { apiKey: string; modelName?: string; prompt?: string }) => any;
+  provider: string;
+  loadedModel: new (options: {
+    apiKey: string;
+    modelName?: string;
+    prompt?: string;
+    provider?: string;
+  }) => any;
   model: any;
 
   readonly modelRegistry: Record<string, any> = {
@@ -25,9 +32,9 @@ export class ModelAdapter {
     "gpt-4.1-nano": ChatGPTAdapter,
     "gpt-4o": ChatGPTAdapter,
     "gpt-4o-mini": ChatGPTAdapter,
-    "o1": ChatGPTAdapter,
+    o1: ChatGPTAdapter,
     "o1-pro": ChatGPTAdapter,
-    "o3": ChatGPTAdapter,
+    o3: ChatGPTAdapter,
     "o3-pro": ChatGPTAdapter,
     "o4-mini": ChatGPTAdapter,
     "claude-opus-4": ClaudeAdapter,
@@ -44,23 +51,31 @@ export class ModelAdapter {
 
   readonly modelPrefixRegistry: Record<string, any> = {
     "gpt-": ChatGPTAdapter,
-    "o": ChatGPTAdapter,
+    o: ChatGPTAdapter,
     "claude-": ClaudeAdapter,
     "gemini-": GeminiAdapter,
   };
 
-  constructor({ apiKey, modelName, prompt }: ModelAdapterOptions) {
+  readonly providerRegistry: Record<string, any> = {
+    gemini: GeminiAdapter,
+    openai: ChatGPTAdapter,
+    claude: ClaudeAdapter,
+  };
+
+  constructor({ apiKey, modelName, prompt, provider }: ModelAdapterOptions) {
     this.ensureAPIKey(apiKey);
     this.ensureModelName(modelName);
 
     this.apiKey = apiKey;
     this.modelName = modelName;
     this.prompt = prompt;
-    this.loadedModel = this.resolveModel(this.modelName);
+    this.provider = provider;
+    this.loadedModel = this.resolveModel();
     this.model = new this.loadedModel({
       apiKey: this.apiKey,
       modelName: this.modelName,
       prompt: this.prompt,
+      provider: this.provider,
     });
   }
 
@@ -84,25 +99,46 @@ export class ModelAdapter {
     return this.model.uploadFile(file);
   }
 
-  resolveModel(modelName: string) {
-    const resolvedModel = this.modelRegistry[modelName];
+  resolveProvider(provider: string) {
+    return this.providerRegistry[provider];
+  }
 
-    if (resolvedModel) {
-      return resolvedModel;
-    }
-
+  resolveModelByPrefix = (model: string) => {
     const modelPrefixKeys = Object.keys(this.modelPrefixRegistry);
 
     const resolvedPrefix = modelPrefixKeys.find((modelPrefix) => {
-      return modelName.startsWith(modelPrefix);
+      return model.startsWith(modelPrefix);
     });
 
     if (resolvedPrefix && this.modelPrefixRegistry[resolvedPrefix]) {
       return this.modelPrefixRegistry[resolvedPrefix];
     }
 
+    return null;
+  };
+
+  resolveModel = () => {
+    const { provider, modelName } = this;
+    const modelProvider = this.providerRegistry[provider];
+
+    if (modelProvider) {
+      return modelProvider;
+    }
+
+    const resolvedModel = this.modelRegistry[modelName];
+
+    if (resolvedModel) {
+      return resolvedModel;
+    }
+
+    const resolvedModelByPrefix = this.resolveModelByPrefix(modelName);
+
+    if (resolvedModelByPrefix) {
+      return resolvedModelByPrefix;
+    }
+
     throw new Error(`Model "${modelName}" could not be resolved`);
-  }
+  };
 }
 
 export default ModelAdapter;
