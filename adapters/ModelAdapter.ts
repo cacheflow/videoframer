@@ -1,11 +1,11 @@
-import ChatGPTAdapter from "./ChatGPTAdapter.js";
-import ClaudeAdapter from "./ClaudeAdapter.js";
-import GeminiAdapter from "./GeminiAdapter.js";
+import ChatGPTAdapter from "./ChatGPTAdapter.ts";
+import ClaudeAdapter from "./ClaudeAdapter.ts";
+import GeminiAdapter from "./GeminiAdapter.ts";
 
 export interface ModelAdapterOptions {
   apiKey: string;
   model: string;
-  prompt: string;
+  prompt?: string;
   provider: string;
 }
 
@@ -120,21 +120,28 @@ export class ModelAdapter {
 
     if (resolvedProvider) {
       adapter = resolvedProvider.adapter;
+      return new adapter({ 
+        apiKey, 
+        model: normalizedModelName,
+        prompt, 
+      });
     }
 
     const resolvedModel = (this.modelRegistry[normalizedModelName] || '');
 
     if (resolvedModel) {
       adapter = resolvedModel.adapter;
+      return new adapter({ 
+        apiKey, 
+        model: normalizedModelName,
+        prompt, 
+      });
     }
 
     const resolvedModelByPrefix = this.resolveModelByPrefix(normalizedModelName);
 
     if (resolvedModelByPrefix) {
       adapter = resolvedModelByPrefix.adapter;
-    }
-
-    if (adapter) {
       return new adapter({ 
         apiKey, 
         model: normalizedModelName,

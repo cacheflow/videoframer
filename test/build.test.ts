@@ -27,7 +27,6 @@ test("ESM build can be imported and includes all declaration files", async () =>
     projectRoot,
     "dist",
     "esm",
-    "types",
     "app.d.ts",
   );
 

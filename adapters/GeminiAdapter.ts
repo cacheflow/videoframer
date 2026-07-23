@@ -49,7 +49,7 @@ class GeminiAdapter {
 
     this.ai = new GoogleGenAI({ apiKey });
     this.model = model || "gemini-2.5-flash";
-    this.prompt = prompt;
+    this.prompt = prompt || this.defaultPrompt.join(' ');
   }
 
   async uploadFile(file: ReadStream | File | any): Promise<UploadedFile> {

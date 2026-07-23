@@ -4,7 +4,7 @@ export interface VideoframerOptions {
   videoPath: string;
   apiKey: string;
   provider: string;
-  prompt: string;
+  prompt?: string;
   framesDirectory: string;
   model?: string;
   frameRate?: number;
