@@ -5,12 +5,12 @@
   "license": "ISC",
   "author": "",
   "type": "module",
-  "main": "./dist/app.js",
-  "types": "./dist/app.d.ts",
+  "main": "./dist/esm/app.js",
+  "types": "./dist/esm/app.d.ts",
   "exports": {
     ".": {
-      "types": "./dist/app.d.ts",
-      "import": "./dist/app.js"
+      "types": "./dist/esm/app.d.ts",
+      "import": "./dist/esm/app.js"
     }
   },
   "files": [

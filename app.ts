@@ -4,7 +4,7 @@ import fs, { type ReadStream } from "node:fs";
 import path from "node:path";
 import ffmpeg from "ffmpeg";
 import type {
-  VideoAnalyzerOptions,
+  FramewiseOptions,
   UploadedFile,
   BatchContent,
   ProcessingStartedEvent,
@@ -18,7 +18,7 @@ import "dotenv/config";
 
 import ModelAdapter from "./adapters/ModelAdapter.js";
 
-export class VideoAnalyzer extends EventEmitter {
+export class Framewise extends EventEmitter {
   readonly model: string;
   readonly provider: string;
   readonly client: ModelAdapter;
@@ -27,13 +27,12 @@ export class VideoAnalyzer extends EventEmitter {
   readonly framesDirectory: string;
   readonly frameRate: number;
   readonly batchSize: number;
-  readonly maxFrames?: number | "all";
+  readonly maxFrames: number | "all";
   readonly keepFrames?: boolean;
 
   constructor({
     videoPath,
-    provider = "chatgpt",
-    keepFrames = false,
+    provider = 'chatgpt',
     apiKey,
     framesDirectory,
     prompt,
@@ -41,7 +40,8 @@ export class VideoAnalyzer extends EventEmitter {
     frameRate = 1,
     batchSize = 5,
     maxFrames = 10,
-  }: VideoAnalyzerOptions) {
+    keepFrames = false,
+  }: FramewiseOptions) {
     super();
     this.model = model;
     this.provider = provider;
@@ -86,11 +86,6 @@ export class VideoAnalyzer extends EventEmitter {
         msg: `Error: It looks like framesDirectory is missing. You passed ${typeof framesDirectory}`,
       });
 
-      if (!fs.existsSync(framesDirectory)) {
-        throw new Error(
-          `Error: Frames directory does not exist at path ${framesDirectory}`,
-        );
-      }
 
       if (!fs.existsSync(videoPath)) {
         throw new Error(
@@ -108,7 +103,6 @@ export class VideoAnalyzer extends EventEmitter {
 
       this.emit("progress", {
         totalFrames: framePaths.length,
-        totalBatches: batches.length,
         processedFrames: 0,
         processedBatches: 0,
       });
@@ -116,7 +110,6 @@ export class VideoAnalyzer extends EventEmitter {
       const onUpload = (result: BatchResult): void => {
         this.emit("progress", {
           totalFrames: framePaths.length,
-          totalBatches: batches.length,
           result: result,
           processedFrames: result.processedFrames,
           processedBatches: result.batchIndex + 1,
@@ -130,7 +123,6 @@ export class VideoAnalyzer extends EventEmitter {
         completedAt,
         durationMs: completedAt - startTime,
         totalFrames: framePaths.length,
-        totalBatches: batches.length,
         results,
       };
 
@@ -194,11 +186,17 @@ export class VideoAnalyzer extends EventEmitter {
   }
 
   async prepareFramesDirectory(): Promise<void> {
-    await fs.promises.rm(this.framesDirectory, {
-      recursive: true,
-      force: true,
-    });
-    await fs.promises.mkdir(this.framesDirectory, { recursive: true });
+    const { framesDirectory } = this;
+    const resolvedFramesDirectory = path.resolve(framesDirectory);
+
+    if (fs.existsSync(resolvedFramesDirectory)) {
+      await fs.promises.rm(resolvedFramesDirectory, {
+        recursive: true,
+        force: true,
+      });
+    }
+    
+    await fs.promises.mkdir(resolvedFramesDirectory, { recursive: true });
   }
 
   async extractFrames(): Promise<void> {

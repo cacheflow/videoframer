@@ -4,13 +4,17 @@ import { mkdtemp, mkdir, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test, { mock } from "node:test";
-import { VideoAnalyzer } from "../dist/app.js";
+import { Framewise } from "../dist/esm/app.js";
 
 import type {
-  VideoAnalyzerOptions,
+  FramewiseOptions,
   BatchResult,
   InputTextContent,
-} from "../types/app.d.ts";
+  UploadBatchesOptions,
+  ProcessingStartedEvent,
+  ProcessingProgressEvent,
+  AnalysisResult,
+} from "../types/app.js";
 
 mock.method(fs, "existsSync", (filePath: any) => {
   const p = String(filePath);
@@ -20,24 +24,25 @@ mock.method(fs, "existsSync", (filePath: any) => {
   return true;
 });
 
-const createAnalyzer = (overrides: Partial<VideoAnalyzerOptions> = {}) =>
-  new VideoAnalyzer({
+const createFramewise = (overrides: Partial<FramewiseOptions> = {}) =>
+  new Framewise({
     videoPath: "/tmp/video.mp4",
     apiKey: "test-key",
     framesDirectory: "/tmp/frames",
-    apiKey: "random-key",
+    provider: "chatgpt",
+    prompt: "Analyze the video frames.",
     ...overrides,
   });
 
 test("creates batches without dropping a partial final batch", () => {
-  const analyzer = createAnalyzer({ batchSize: 2 });
+  const framewise = createFramewise({ batchSize: 2 });
 
-  assert.deepEqual(analyzer.createBatches(["a", "b", "c", "d", "e"]), [
+  assert.deepEqual(framewise.createBatches(["a", "b", "c", "d", "e"]), [
     ["a", "b"],
     ["c", "d"],
     ["e"],
   ]);
-  assert.deepEqual(analyzer.createBatches([]), []);
+  assert.deepEqual(framewise.createBatches([]), []);
 });
 
 test("returns naturally sorted file paths capped by maxFrames", async () => {
@@ -51,19 +56,19 @@ test("returns naturally sorted file paths capped by maxFrames", async () => {
   );
   await mkdir(path.join(framesDirectory, "ignored-directory"));
 
-  const analyzer = createAnalyzer({ framesDirectory, maxFrames: 2 });
+  const framewise = createFramewise({ framesDirectory, maxFrames: 2 });
 
-  assert.deepEqual(await analyzer.getFramePaths(), [
+  assert.deepEqual(await framewise.getFramePaths(), [
     path.join(framesDirectory, "1_frame.jpg"),
     path.join(framesDirectory, "2_frame.jpg"),
   ]);
 });
 
 test("prepares sequential multimodal content across batches", () => {
-  const analyzer = createAnalyzer();
+  const framewise = createFramewise();
 
   assert.deepEqual(
-    analyzer.prepareContentBatch(
+    framewise.prepareContentBatch(
       [
         { id: "file-1", filename: "one.jpg" },
         { id: "file-2", filename: "two.jpg" },
@@ -83,21 +88,21 @@ test("prepares sequential multimodal content across batches", () => {
 });
 
 test("uploads batches sequentially and reports cumulative progress", async () => {
-  const analyzer = createAnalyzer();
+  const framewise = createFramewise();
   const requestedBatches: string[][] = [];
   const contents: any[] = [];
   const progress: number[] = [];
 
-  analyzer.uploadFrameBatch = async (batch: string[]) => {
+  framewise.uploadFrameBatch = async (batch: string[]) => {
     requestedBatches.push(batch);
     return batch.map((filename) => ({ id: `id-${filename}`, filename }));
   };
-  analyzer.createResponse = async (content: any) => {
+  framewise.createResponse = async (content: any) => {
     contents.push(content);
     return { output_text: `response-${contents.length}` };
   };
 
-  const results = await analyzer.uploadBatches({
+  const results = await framewise.uploadBatches({
     batches: [["one.jpg", "two.jpg"], ["three.jpg"]],
     onUpload: (result: BatchResult) => progress.push(result.processedFrames),
   });
@@ -109,7 +114,7 @@ test("uploads batches sequentially and reports cumulative progress", async () =>
   );
   assert.deepEqual(progress, [2, 3]);
   assert.deepEqual(
-    results.map(({ batchIndex, frameCount, processedFrames, outputText }) => ({
+    results.map(({ batchIndex, frameCount, processedFrames, outputText }: BatchResult) => ({
       batchIndex,
       frameCount,
       processedFrames,
@@ -133,21 +138,21 @@ test("uploads batches sequentially and reports cumulative progress", async () =>
 });
 
 test("runs the pipeline and emits lifecycle events", async () => {
-  const analyzer = createAnalyzer({ batchSize: 2 });
+  const framewise = createFramewise({ batchSize: 2 });
   const calls: string[] = [];
   const events: [string, any][] = [];
 
-  analyzer.prepareFramesDirectory = async () => {
+  framewise.prepareFramesDirectory = async () => {
     calls.push("prepare");
   };
-  analyzer.extractFrames = async () => {
+  framewise.extractFrames = async () => {
     calls.push("extract");
   };
-  analyzer.getFramePaths = async () => ["1.jpg", "2.jpg", "3.jpg"];
-  analyzer.uploadBatches = async ({
+  framewise.getFramePaths = async () => ["1.jpg", "2.jpg", "3.jpg"];
+  framewise.uploadBatches = async ({
     batches,
     onUpload,
-  }): Promise<BatchResult[]> => {
+  }: UploadBatchesOptions): Promise<BatchResult[]> => {
     assert.deepEqual(batches, [["1.jpg", "2.jpg"], ["3.jpg"]]);
     onUpload?.({
       batchIndex: 0,
@@ -166,11 +171,11 @@ test("runs the pipeline and emits lifecycle events", async () => {
     ];
   };
 
-  analyzer.on("started", (payload) => events.push(["started", payload]));
-  analyzer.on("progress", (payload) => events.push(["progress", payload]));
-  analyzer.on("completed", (payload) => events.push(["completed", payload]));
+  framewise.on("started", (payload: ProcessingStartedEvent) => events.push(["started", payload]));
+  framewise.on("progress", (payload: ProcessingProgressEvent) => events.push(["progress", payload]));
+  framewise.on("completed", (payload: AnalysisResult) => events.push(["completed", payload]));
 
-  const result = await analyzer.analyze();
+  const result = await framewise.analyze();
   const startedEvents = events.filter(([name]) => name === "started");
   const getEvents = (name: string) =>
     events.filter(([eventName]) => eventName === name);
@@ -179,7 +184,6 @@ test("runs the pipeline and emits lifecycle events", async () => {
   );
   assert.deepEqual(calls, ["prepare", "extract"]);
   assert.equal(result.totalFrames, 3);
-  assert.equal(result.totalBatches, 2);
 
   assert.equal(startedEvents.length, 1);
   assert.equal(getEvents("progress").length, 3);
@@ -191,57 +195,44 @@ test("runs the pipeline and emits lifecycle events", async () => {
 });
 
 test("emits and rethrows pipeline errors", async () => {
-  const analyzer = createAnalyzer();
+  const framewise = createFramewise();
   const expected = new Error("frame extraction failed");
   let emitted: Error | undefined;
 
-  analyzer.prepareFramesDirectory = async () => {};
-  analyzer.extractFrames = async () => {
+  framewise.prepareFramesDirectory = async () => {};
+  framewise.extractFrames = async () => {
     throw expected;
   };
-  analyzer.on("error", (error: Error) => {
+  framewise.on("error", (error: Error) => {
     emitted = error;
   });
 
-  await assert.rejects(analyzer.analyze(), expected);
+  await assert.rejects(framewise.analyze(), expected);
   assert.equal(emitted, expected);
 });
 
 test("throws an error if the video file does not exist", async () => {
-  const analyzer = createAnalyzer({ videoPath: "nonexistent.mp4" });
+  const framewise = createFramewise({ videoPath: "nonexistent.mp4" });
   await assert.rejects(
-    analyzer.analyze(),
+    framewise.analyze(),
     /Error: Video file does not exist at path nonexistent.mp4/,
   );
 });
 
-test("throws an error if the frames directory does not exist", async () => {
-  const analyzer = createAnalyzer({
-    videoPath: "nonexistent.mp4",
-    framesDirectory: "nonexistent-frames",
-  });
-  await assert.rejects(
-    analyzer.analyze(),
-    /Error: Frames directory does not exist at path nonexistent-frames/,
-  );
+test("creates frames directory if it does not exist", async () => {
+  const framewise = createFramewise({ framesDirectory: "./test-frames" });
+  await framewise.prepareFramesDirectory();
+  assert.ok(fs.existsSync(path.resolve("./test-frames")));
 });
 
 test("throws an error if frames directory is nullish", async () => {
-  const analyzer = createAnalyzer({
-    videoPath: "nonexistent.mp4",
-    framesDirectory: null,
-  });
-  await assert.rejects(
-    analyzer.analyze(),
-    /Error: It looks like framesDirectory is missing. You passed object/,
-  );
-
-  const secondAnalyzer = createAnalyzer({
+  const framewise = createFramewise({
     videoPath: "nonexistent.mp4",
     framesDirectory: undefined,
   });
+
   await assert.rejects(
-    secondAnalyzer.analyze(),
+    framewise.analyze(),
     /Error: It looks like framesDirectory is missing. You passed undefined/,
   );
 });

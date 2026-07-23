@@ -9,23 +9,40 @@ const projectRoot = path.resolve(
   "..",
 );
 
-test("package metadata exposes the generated ESM build and declarations", async () => {
+test("package metadata exposes the ESM build and declarations", async () => {
   const packageJson = JSON.parse(
     await readFile(path.join(projectRoot, "package.json"), "utf8"),
   );
 
-  assert.equal(packageJson.main, "./dist/app.js");
-  assert.equal(packageJson.types, "./dist/app.d.ts");
-  assert.equal(packageJson.exports["."].import, "./dist/app.js");
-  assert.equal(packageJson.exports["."].types, "./dist/app.d.ts");
+  assert.equal(packageJson.main, "./dist/esm/app.js");
+  assert.equal(packageJson.types, "./dist/esm/app.d.ts");
+  assert.equal(packageJson.exports["."].types, "./dist/esm/app.d.ts");
+  assert.equal(packageJson.exports["."].import, "./dist/esm/app.js");
 });
 
-test("build output can be imported and includes type declarations", async () => {
-  const builtEntry = path.join(projectRoot, "dist", "app.js");
-  const declarations = path.join(projectRoot, "dist", "app.d.ts");
+test("ESM build can be imported and includes all declaration files", async () => {
+  const builtEntry = path.join(projectRoot, "dist", "esm", "app.js");
+  const declarations = path.join(projectRoot, "dist", "esm", "app.d.ts");
+  const internalTypes = path.join(
+    projectRoot,
+    "dist",
+    "esm",
+    "types",
+    "app.d.ts",
+  );
 
-  await Promise.all([access(builtEntry), access(declarations)]);
+  await Promise.all([
+    access(builtEntry),
+    access(declarations),
+    access(internalTypes),
+  ]);
 
   const builtPackage = await import(`${builtEntry}?test=${Date.now()}`);
-  assert.equal(typeof builtPackage.VideoAnalyzer, "function");
+  assert.equal(typeof builtPackage.Framewise, "function");
+});
+
+test("package exports route imports to the ESM build", async () => {
+  const importedPackage = await import("framewise");
+
+  assert.equal(typeof importedPackage.Framewise, "function");
 });

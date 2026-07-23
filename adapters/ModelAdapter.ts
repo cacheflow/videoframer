@@ -12,7 +12,7 @@ export interface ModelAdapterOptions {
 export class ModelAdapter {
   apiKey: string;
   model: string;
-  prompt: string;
+  prompt?: string;
   provider: string;
   adapter: ChatGPTAdapter | ClaudeAdapter | GeminiAdapter;
 
@@ -51,13 +51,13 @@ export class ModelAdapter {
   };
 
   readonly providerRegistry: Record<string, any> = {
-    gemini: { adapter: GeminiAdapter, provider: 'gemini' },
-    google: { adapter: GeminiAdapter, provider: 'gemini' },
-    openai: { adapter: ChatGPTAdapter, provider: 'openai' },
-    oai: { adapter: ChatGPTAdapter, provider: 'openai' },
-    chatgpt: { adapter: ChatGPTAdapter, provider: 'openai' },
-    claude: { adapter: ClaudeAdapter, provider: 'claude' },
-    anthropic: { adapter: ClaudeAdapter, provider: 'claude' },
+    gemini: {adapter: GeminiAdapter, provider: 'gemini' },
+    google: {adapter: GeminiAdapter, provider: 'gemini' },
+    openai: {adapter: ChatGPTAdapter, provider: 'openai' },
+    oai: {adapter: ChatGPTAdapter, provider: 'openai' },
+    chatgpt: {adapter: ChatGPTAdapter, provider: 'openai' },
+    claude: {adapter: ClaudeAdapter, provider: 'claude' },
+    anthropic: {adapter: ClaudeAdapter, provider: 'claude' },
   };
 
   constructor({ apiKey, model, prompt, provider }: ModelAdapterOptions) {

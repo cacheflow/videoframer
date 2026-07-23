@@ -1,14 +1,16 @@
-export interface VideoAnalyzerOptions {
+export type FramerateOptions = "all" | -1 | 0;
+
+export interface FramewiseOptions {
   videoPath: string;
   apiKey: string;
   provider: string;
   prompt: string;
-  keepFrames?: boolean;
   framesDirectory: string;
   model?: string;
   frameRate?: number;
   batchSize?: number;
-  maxFrames?: number;
+  maxFrames?: number | "all";
+  keepFrames?: boolean;
 }
 
 export interface UploadedFile {
@@ -47,7 +49,6 @@ export interface UploadBatchesOptions {
 export interface ProcessingStartedEvent {
   startTime?: number;
   totalFrames?: number;
-  totalBatches?: number;
   processedFrames?: number;
   processedBatches?: number;
 }
@@ -55,14 +56,12 @@ export interface ProcessingStartedEvent {
 export interface ProcessingProgressEvent {
   startTime?: number;
   totalFrames?: number;
-  totalBatches?: number;
   processedFrames?: number;
   processedBatches?: number;
 }
 
 export interface ProgressEvent {
   totalFrames: number;
-  totalBatches: number;
   processedFrames: number;
   processedBatches: number;
 }
@@ -72,6 +71,5 @@ export interface AnalysisResult {
   completedAt: number;
   durationMs: number;
   totalFrames: number;
-  totalBatches: number;
   results: BatchResult[];
 }

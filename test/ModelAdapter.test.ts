@@ -1,23 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import ChatGPTAdapter from "../dist/adapters/ChatGPTAdapter.js";
-import ClaudeAdapter from "../dist/adapters/ClaudeAdapter.js";
-import GeminiAdapter from "../dist/adapters/GeminiAdapter.js";
-import ModelAdapter from "../dist/adapters/ModelAdapter.js";
+import ChatGPTAdapter from "../dist/esm/adapters/ChatGPTAdapter.js";
+import ClaudeAdapter from "../dist/esm/adapters/ClaudeAdapter.js";
+import GeminiAdapter from "../dist/esm/adapters/GeminiAdapter.js";
+import ModelAdapter from "../dist/esm/adapters/ModelAdapter.js";
 
 const prompt = "Test prompt";
-
-// test("requires an API key and model name", () => {
-//   assert.throws(
-//     () => new ModelAdapter({ apiKey: null, model: "gpt-5.6", prompt }),
-//     /API key is required/,
-//   );
-//   assert.throws(
-//     () => new ModelAdapter({provider: 'openai', apiKey: "test-key", model: "", prompt }),
-//     /Model name is required/,
-//   );
-// });
 
 test("loads the ChatGPT adapter for supported OpenAI models", () => {
   const modelAdapter = new ModelAdapter({
