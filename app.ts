@@ -92,7 +92,6 @@ export class Videoframer extends EventEmitter {
         );
       }
 
-      this.emit("started", { startTime });
 
       await this.prepareFramesDirectory();
       await this.extractFrames();
@@ -100,7 +99,8 @@ export class Videoframer extends EventEmitter {
       const framePaths = await this.getFramePaths();
       const batches = this.createBatches(framePaths);
 
-      this.emit("progress", {
+      this.emit("started", {
+        startTime,
         totalFrames: framePaths.length,
         processedFrames: 0,
         processedBatches: 0,

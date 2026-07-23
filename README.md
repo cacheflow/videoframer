@@ -77,9 +77,15 @@ const videoframer = new Videoframer({
   maxFrames: 20,
 });
 
-videoframer.on("progress", (progress) => {
+videoframer.on("started", (data) => {
   console.log(
-    `Processed ${progress.processedFrames} of ${progress.totalFrames} frames`,
+    `Started ${progress.processedFrames} of ${progress.totalFrames} frames: ${data}`,
+  );
+});
+
+videoframer.on("completed", (data) => {
+  console.log(
+    `Completed analysis ${data}`,
   );
 });
 
