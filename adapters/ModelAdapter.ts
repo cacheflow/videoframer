@@ -118,19 +118,19 @@ export class ModelAdapter {
     const resolvedProvider = this.resolveProvider(provider);
     let adapter;
 
-    if (resolvedProvider) {
+    if (resolvedProvider && !adapter) {
       adapter = resolvedProvider.adapter;
     }
 
     const resolvedModel = (this.modelRegistry[normalizedModelName] || '');
 
-    if (resolvedModel) {
+    if (resolvedModel && !adapter) {
       adapter = resolvedModel.adapter;
     }
 
     const resolvedModelByPrefix = this.resolveModelByPrefix(normalizedModelName);
 
-    if (resolvedModelByPrefix) {
+    if (resolvedModelByPrefix && !adapter) {
       adapter = resolvedModelByPrefix.adapter;
     }
 
