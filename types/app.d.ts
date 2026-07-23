@@ -1,6 +1,6 @@
 export type FramerateOptions = "all" | -1 | 0;
 
-export interface FramewiseOptions {
+export interface VideoframerOptions {
   videoPath: string;
   apiKey: string;
   provider: string;

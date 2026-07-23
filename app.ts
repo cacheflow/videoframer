@@ -4,7 +4,7 @@ import fs, { type ReadStream } from "node:fs";
 import path from "node:path";
 import ffmpeg from "ffmpeg";
 import type {
-  FramewiseOptions,
+  VideoframerOptions,
   UploadedFile,
   BatchContent,
   ProcessingStartedEvent,
@@ -18,7 +18,7 @@ import "dotenv/config";
 
 import ModelAdapter from "./adapters/ModelAdapter.js";
 
-export class Framewise extends EventEmitter {
+export class Videoframer extends EventEmitter {
   readonly model: string;
   readonly provider: string;
   readonly client: ModelAdapter;
@@ -41,7 +41,7 @@ export class Framewise extends EventEmitter {
     batchSize = 5,
     maxFrames = 10,
     keepFrames = false,
-  }: FramewiseOptions) {
+  }: VideoframerOptions) {
     super();
     this.model = model;
     this.provider = provider;

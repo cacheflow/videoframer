@@ -1,5 +1,5 @@
 {
-  "name": "framewise",
+  "name": "videoframer",
   "version": "1.0.0",
   "description": "Analyze videos with multimodal AI, one frame at a time.",
   "license": "ISC",
