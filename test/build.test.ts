@@ -42,7 +42,7 @@ test("ESM build can be imported and includes all declaration files", async () =>
 });
 
 test("package exports route imports to the ESM build", async () => {
-  const importedPackage = await import("../app.ts");
+  const importedPackage = await import("videoframer");
 
   assert.equal(typeof importedPackage.Videoframer, "function");
 });
