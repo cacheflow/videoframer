@@ -8,7 +8,7 @@
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
     "noEmitOnError": true,
-    "outDir": "dist",
+    "outDir": "dist/esm",
     "rootDir": ".",
     "skipLibCheck": true,
     "strict": true,
@@ -16,7 +16,8 @@
   },
   "include": [
     "app.ts",
-    "adapters/ChatGPTAdapter.js",
+    "adapters/**/*",
+    "resolvers/**/*",
     "types/**/*.d.ts"
   ]
 }

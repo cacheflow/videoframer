@@ -1,0 +1,4 @@
+title = "Framewise Gitleaks configuration"
+
+[extend]
+useDefault = true
