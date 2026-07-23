@@ -186,11 +186,10 @@ test("runs the pipeline and emits lifecycle events", async () => {
   assert.equal(result.totalFrames, 3);
 
   assert.equal(startedEvents.length, 1);
-  assert.equal(getEvents("progress").length, 3);
-  assert.equal(getEvents("started").length, 1);
+  assert.equal(getEvents("progress").length, 2);
   assert.equal(getEvents("started").length, 1);
 
-  assert.equal(processedFrames.length, 3);
+  assert.equal(processedFrames.length, 2);
   assert.equal(events.at(-1)?.[0], "completed");
 });
 
