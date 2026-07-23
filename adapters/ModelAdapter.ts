@@ -118,23 +118,30 @@ export class ModelAdapter {
     const resolvedProvider = this.resolveProvider(provider);
     let adapter;
 
-    if (resolvedProvider && !adapter) {
+    if (resolvedProvider) {
       adapter = resolvedProvider.adapter;
+      return new adapter({ 
+        apiKey, 
+        model: normalizedModelName,
+        prompt, 
+      });
     }
 
     const resolvedModel = (this.modelRegistry[normalizedModelName] || '');
 
-    if (resolvedModel && !adapter) {
+    if (resolvedModel) {
       adapter = resolvedModel.adapter;
+      return new adapter({ 
+        apiKey, 
+        model: normalizedModelName,
+        prompt, 
+      });
     }
 
     const resolvedModelByPrefix = this.resolveModelByPrefix(normalizedModelName);
 
-    if (resolvedModelByPrefix && !adapter) {
+    if (resolvedModelByPrefix) {
       adapter = resolvedModelByPrefix.adapter;
-    }
-
-    if (adapter) {
       return new adapter({ 
         apiKey, 
         model: normalizedModelName,
