@@ -1,5 +1,5 @@
 {
-  "name": "framewise",
+  "name": "videos-to-framer",
   "version": "1.0.0",
   "description": "Analyze videos with multimodal AI, one frame at a time.",
   "license": "ISC",
@@ -18,12 +18,12 @@
     "README.md"
   ],
   "scripts": {
-    "build": "node scripts/build.js",
+    "build": "tsc --project tsconfig.build.json",
+    "typecheck": "tsc --project tsconfig.build.json --noEmit",
+    "test": "npm run build && node --test",
     "prepublishOnly": "npm test && npm run build",
     "secrets:scan": "gitleaks git --redact --verbose",
-    "secrets:scan:staged": "gitleaks git --staged --redact --verbose",
-    "test": "npm run build && node --test",
-    "typecheck": "tsc --project tsconfig.build.json --noEmit"
+    "secrets:scan:staged": "gitleaks git --staged --redact --verbose"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.112.3",

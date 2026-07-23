@@ -1,11 +1,11 @@
-import ChatGPTAdapter from "./ChatGPTAdapter.js";
-import ClaudeAdapter from "./ClaudeAdapter.js";
-import GeminiAdapter from "./GeminiAdapter.js";
+import ChatGPTAdapter from "./ChatGPTAdapter.ts";
+import ClaudeAdapter from "./ClaudeAdapter.ts";
+import GeminiAdapter from "./GeminiAdapter.ts";
 
 export interface ModelAdapterOptions {
   apiKey: string;
   model: string;
-  prompt: string;
+  prompt?: string;
   provider: string;
 }
 

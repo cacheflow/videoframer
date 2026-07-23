@@ -145,3 +145,4 @@ responses/
 bun.lockb
 .envrc
 
+.npmrc

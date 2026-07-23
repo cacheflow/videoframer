@@ -59,7 +59,7 @@ class ChatGPTAdapter {
       });
 
       this.model = model || "gpt-5.6";
-      this.prompt = prompt;
+      this.prompt = prompt || this.defaultPrompt.join(' ');
     }
 
     static get model(): string | null {

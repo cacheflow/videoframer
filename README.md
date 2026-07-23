@@ -1,8 +1,8 @@
-# Framewise
+# Videoframer
 
 Analyze video with multimodal AI, one frame at a time.
 
-Framewise is a Node.js library that extracts chronologically ordered frames from
+Videoframer is a Node.js library that extracts chronologically ordered frames from
 a local video, groups them into batches, and sends them to OpenAI, Anthropic, or
 Google multimodal models.
 
@@ -45,13 +45,13 @@ ffmpeg -version
 ## Installation
 
 ```bash
-npm install framewise
+npm install videoframer
 ```
 
-Framewise is an ESM package:
+Videoframer is an ESM package:
 
 ```js
-import { Framewise } from "framewise";
+import { Videoframer } from "videoframer";
 ```
 
 TypeScript resolves the bundled declarations automatically through the package
@@ -60,9 +60,9 @@ export map.
 ## Quick start
 
 ```js
-import { Framewise } from "framewise";
+import { Videoframer } from "videoframer";
 
-const framewise = new Framewise({
+const videoframer = new Videoframer({
   videoPath: "./videos/demo.mp4",
   framesDirectory: "./tmp/frames",
   provider: "openai",
@@ -77,26 +77,26 @@ const framewise = new Framewise({
   maxFrames: 20,
 });
 
-framewise.on("progress", (progress) => {
+videoframer.on("progress", (progress) => {
   console.log(
     `Processed ${progress.processedFrames} of ${progress.totalFrames} frames`,
   );
 });
 
-const analysis = await framewise.analyze();
+const analysis = await videoframer.analyze();
 
 for (const batch of analysis.results) {
   console.log(batch.outputText);
 }
 ```
 
-Framewise creates `framesDirectory` when necessary. It clears and recreates the
+Videoframer creates `framesDirectory` when necessary. It clears and recreates the
 directory before extraction, then removes it after analysis unless `keepFrames`
 is enabled.
 
 ## Configuration
 
-Pass these options to `new Framewise(options)`:
+Pass these options to `new Videoframer(options)`:
 
 | Option | Type | Required | Default | Description |
 | --- | --- | --- | --- | --- |
@@ -120,7 +120,7 @@ frames are sent to the provider.
 
 ## Providers and models
 
-Framewise resolves adapters from the model name and provider alias.
+Videoframer resolves adapters from the model name and provider alias.
 
 | Provider | Accepted aliases | Recognized model families |
 | --- | --- | --- |
@@ -131,7 +131,7 @@ Framewise resolves adapters from the model name and provider alias.
 Examples:
 
 ```js
-const openaiframewise = new Framewise({
+const openaivideoframer = new Videoframer({
   videoPath: "./video.mp4",
   framesDirectory: "./tmp/openai-frames",
   provider: "openai",
@@ -140,7 +140,7 @@ const openaiframewise = new Framewise({
   prompt: "Summarize the video in chronological order.",
 });
 
-const claudeframewise = new Framewise({
+const claudevideoframer = new Videoframer({
   videoPath: "./video.mp4",
   framesDirectory: "./tmp/claude-frames",
   provider: "anthropic",
@@ -149,7 +149,7 @@ const claudeframewise = new Framewise({
   prompt: "Describe the important visual changes.",
 });
 
-const geminiframewise = new Framewise({
+const geminivideoframer = new Videoframer({
   videoPath: "./video.mp4",
   framesDirectory: "./tmp/gemini-frames",
   provider: "google",
@@ -185,7 +185,7 @@ Each batch produces its own model response. Frame labels continue across
 batches, and requests run sequentially.
 
 ```js
-const result = await framewise.analyze();
+const result = await videoframer.analyze();
 const combinedOutput = result.results
   .map((batch) => batch.outputText)
   .join("\n\n");
@@ -196,11 +196,11 @@ const combinedOutput = result.results
 Attach listeners before calling `analyze()`:
 
 ```js
-framewise.on("started", ({ startTime }) => {
+videoframer.on("started", ({ startTime }) => {
   console.log("Started:", startTime);
 });
 
-framewise.on("progress", (event) => {
+videoframer.on("progress", (event) => {
   console.log({
     totalFrames: event.totalFrames,
     totalBatches: event.totalBatches,
@@ -209,15 +209,15 @@ framewise.on("progress", (event) => {
   });
 });
 
-framewise.on("completed", (result) => {
+videoframer.on("completed", (result) => {
   console.log(`Completed in ${result.durationMs}ms`);
 });
 
-framewise.on("error", (error) => {
+videoframer.on("error", (error) => {
   console.error("Analysis failed:", error);
 });
 
-await framewise.analyze();
+await videoframer.analyze();
 ```
 
 | Event | Emitted when |
@@ -232,7 +232,7 @@ and `try`/`catch`:
 
 ```js
 try {
-  await framewise.analyze();
+  await videoframer.analyze();
 } catch (error) {
   console.error(error);
 }

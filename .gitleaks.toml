@@ -1,4 +1,4 @@
-title = "Framewise Gitleaks configuration"
+title = "Videoframer Gitleaks configuration"
 
 [extend]
 useDefault = true

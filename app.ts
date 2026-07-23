@@ -1,10 +1,9 @@
-import dotenv from "dotenv";
 import { EventEmitter } from "node:events";
 import fs, { type ReadStream } from "node:fs";
 import path from "node:path";
 import ffmpeg from "ffmpeg";
 import type {
-  FramewiseOptions,
+  VideoframerOptions,
   UploadedFile,
   BatchContent,
   ProcessingStartedEvent,
@@ -16,14 +15,14 @@ import type {
 } from "./types/app.d.ts";
 import "dotenv/config";
 
-import ModelAdapter from "./adapters/ModelAdapter.js";
+import ModelAdapter from "./adapters/ModelAdapter.ts";
 
-export class Framewise extends EventEmitter {
+export class Videoframer extends EventEmitter {
   readonly model: string;
   readonly provider: string;
   readonly client: ModelAdapter;
   readonly videoPath: string;
-  readonly prompt: string;
+  readonly prompt?: string;
   readonly framesDirectory: string;
   readonly frameRate: number;
   readonly batchSize: number;
@@ -41,7 +40,7 @@ export class Framewise extends EventEmitter {
     batchSize = 5,
     maxFrames = 10,
     keepFrames = false,
-  }: FramewiseOptions) {
+  }: VideoframerOptions) {
     super();
     this.model = model;
     this.provider = provider;

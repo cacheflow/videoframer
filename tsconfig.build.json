@@ -5,6 +5,8 @@
     "declaration": true,
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
+    "allowImportingTsExtensions": true,
+    "rewriteRelativeImportExtensions": true,
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
     "noEmitOnError": true,
@@ -14,6 +16,7 @@
     "strict": true,
     "target": "ES2022"
   },
+  "exclude": ["node_modules"],
   "include": [
     "app.ts",
     "adapters/**/*",

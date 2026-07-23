@@ -49,7 +49,7 @@ class ClaudeAdapter {
     });
 
     this.model = model || "claude-3.5-sonnet";
-    this.prompt = prompt;
+    this.prompt = prompt || this.defaultPrompt.join(' ');
   }
 
   async uploadFile(file: ReadStream | File | any): Promise<UploadedFile> {
