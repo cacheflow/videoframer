@@ -14,10 +14,9 @@ import type {
   ProcessingProgressEvent,
   UploadBatchesOptions,
 } from "./types/app.d.ts";
+import "dotenv/config";
 
 import ModelAdapter from "./adapters/ModelAdapter.js";
-
-dotenv.config();
 
 export class VideoAnalyzer extends EventEmitter {
   readonly model: string;
@@ -28,11 +27,13 @@ export class VideoAnalyzer extends EventEmitter {
   readonly framesDirectory: string;
   readonly frameRate: number;
   readonly batchSize: number;
-  readonly maxFrames: number;
+  readonly maxFrames?: number | "all";
+  readonly keepFrames?: boolean;
 
   constructor({
     videoPath,
-    provider,
+    provider = "chatgpt",
+    keepFrames = false,
     apiKey,
     framesDirectory,
     prompt,
@@ -46,7 +47,7 @@ export class VideoAnalyzer extends EventEmitter {
     this.provider = provider;
     this.client = new ModelAdapter({
       apiKey,
-      modelName: model,
+      model,
       prompt,
       provider,
     });
@@ -56,24 +57,15 @@ export class VideoAnalyzer extends EventEmitter {
     this.prompt = prompt;
     this.batchSize = batchSize;
     this.maxFrames = maxFrames;
+    this.keepFrames = keepFrames;
 
-    this.ensure({
-      data: videoPath,
-      msg: `Error: It looks like videoPath is missing. You passed ${typeof videoPath}`,
-    });
-
-    this.ensure({
+    this.ensurePresent({
       data: apiKey,
       msg: `Error: It looks like apiKey is missing. You passed ${typeof apiKey}`,
     });
-
-    this.ensure({
-      data: framesDirectory,
-      msg: `Error: It looks like frameDirectory is missing. You passed ${typeof framesDirectory}`,
-    });
   }
 
-  ensure({ data, msg }: { data: unknown; msg: string }) {
+  ensurePresent({ data, msg }: { data: unknown; msg: string }) {
     if (data === undefined || data === null || !data) {
       throw new Error(`${msg}`);
     }
@@ -81,8 +73,31 @@ export class VideoAnalyzer extends EventEmitter {
 
   analyze = async (): Promise<AnalysisResult> => {
     const startTime = performance.now();
+    const { framesDirectory, videoPath, keepFrames } = this;
 
     try {
+      this.ensurePresent({
+        data: videoPath,
+        msg: `Error: It looks like videoPath is missing. You passed ${typeof videoPath}`,
+      });
+
+      this.ensurePresent({
+        data: framesDirectory,
+        msg: `Error: It looks like framesDirectory is missing. You passed ${typeof framesDirectory}`,
+      });
+
+      if (!fs.existsSync(framesDirectory)) {
+        throw new Error(
+          `Error: Frames directory does not exist at path ${framesDirectory}`,
+        );
+      }
+
+      if (!fs.existsSync(videoPath)) {
+        throw new Error(
+          `Error: Video file does not exist at path ${videoPath}`,
+        );
+      }
+
       this.emit("started", { startTime });
 
       await this.prepareFramesDirectory();
@@ -125,8 +140,24 @@ export class VideoAnalyzer extends EventEmitter {
     } catch (error) {
       this.emit("error", error);
       throw error;
+    } finally {
+      if (!this.keepFrames) {
+        await this.removeFramesDirectory();
+      }
     }
   };
+
+  async removeFramesDirectory(): Promise<void> {
+    const { framesDirectory } = this;
+    try {
+      await fs.promises.rm(framesDirectory, {
+        recursive: true,
+        force: true,
+      });
+    } catch (cleanupError) {
+      console.warn(`Failed to clean up frames directory: ${cleanupError}`);
+    }
+  }
 
   async uploadBatches({
     batches,
@@ -171,13 +202,19 @@ export class VideoAnalyzer extends EventEmitter {
   }
 
   async extractFrames(): Promise<void> {
-    const video = await new ffmpeg(this.videoPath);
+    const { videoPath, framesDirectory, frameRate } = this;
 
-    await new Promise<void>((resolve, reject) => {
+    if (!videoPath) {
+      throw new Error(`Error: Video path is not set.`);
+    }
+
+    const video = await new ffmpeg(videoPath);
+
+    return new Promise<void>((resolve, reject) => {
       video.fnExtractFrameToJPG(
-        this.framesDirectory,
+        framesDirectory,
         {
-          frame_rate: this.frameRate,
+          frame_rate: frameRate,
           file_name: "%01d_frame_%t_%s",
         },
         (error: Error | null) => {
@@ -198,13 +235,26 @@ export class VideoAnalyzer extends EventEmitter {
       withFileTypes: true,
     });
 
-    return entries
+    const sortedPaths = entries
       .filter((entry) => entry.isFile())
       .sort((left, right) =>
         left.name.localeCompare(right.name, undefined, { numeric: true }),
       )
-      .slice(0, this.maxFrames)
       .map((entry) => path.join(this.framesDirectory, entry.name));
+
+    const { maxFrames } = this;
+
+    const allFrames =
+      maxFrames === "all" ||
+      maxFrames === 0 ||
+      maxFrames === -1 ||
+      maxFrames === Infinity;
+
+    if (allFrames) {
+      return sortedPaths;
+    }
+
+    return sortedPaths.slice(0, maxFrames || sortedPaths.length);
   }
 
   createBatches<T>(items: T[]): T[][] {

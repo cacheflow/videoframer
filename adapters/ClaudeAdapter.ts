@@ -25,11 +25,11 @@ class ClaudeAdapter {
 
   constructor({
     apiKey,
-    modelName,
+    model,
     prompt,
   }: {
     apiKey: string;
-    modelName?: string;
+    model?: string;
     prompt: string; 
   }) {
     if (apiKey === undefined || apiKey === null || apiKey === void 0) {
@@ -48,7 +48,7 @@ class ClaudeAdapter {
       apiKey,
     });
 
-    this.model = modelName || "claude-3.5-sonnet";
+    this.model = model || "claude-3.5-sonnet";
     this.prompt = prompt;
   }
 

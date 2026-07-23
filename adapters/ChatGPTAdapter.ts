@@ -12,6 +12,22 @@ type BatchContent =
     };
 
 class ChatGPTAdapter {
+  readonly models: string[] = [
+     "gpt-5",
+    "gpt-5-mini",
+    "gpt-5-nano",
+    "gpt-5.6",
+    "gpt-4.1",
+    "gpt-4.1-mini",
+    "gpt-4.1-nano",
+    "gpt-4o",
+    "gpt-4o-mini",
+    'o1',
+    "o1-pro",
+    'o3',
+    "o3-pro",
+    "o4-mini",
+   ]
     client: OpenAI;
     model: string;
     prompt: string;
@@ -19,11 +35,11 @@ class ChatGPTAdapter {
     
     constructor({
       apiKey,
-      modelName,
+      model,
       prompt,
     }: {
       apiKey: string;
-      modelName?: string;
+      model?: string;
       prompt: string;
     }) {
       if (apiKey === undefined || apiKey === null || apiKey === void 0) {
@@ -42,8 +58,16 @@ class ChatGPTAdapter {
         apiKey: apiKey,
       });
 
-      this.model = modelName || "gpt-5.6";
+      this.model = model || "gpt-5.6";
       this.prompt = prompt;
+    }
+
+    static get model(): string | null {
+      return this.model;
+    }
+
+    static get prompt(): string | null {
+      return this.prompt;
     }
 
     analyze(content: BatchContent[]) {

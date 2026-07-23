@@ -28,11 +28,11 @@ class GeminiAdapter {
 
   constructor({
     apiKey,
-    modelName,
+    model,
     prompt,
   }: {
     apiKey: string;
-    modelName?: string;
+    model?: string;
     prompt: string;
   }) {
     if (apiKey === undefined || apiKey === null || apiKey === void 0) {
@@ -48,7 +48,7 @@ class GeminiAdapter {
     ];
 
     this.ai = new GoogleGenAI({ apiKey });
-    this.model = modelName || "gemini-2.5-flash";
+    this.model = model || "gemini-2.5-flash";
     this.prompt = prompt;
   }
 

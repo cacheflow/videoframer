@@ -4,79 +4,71 @@ import GeminiAdapter from "./GeminiAdapter.js";
 
 export interface ModelAdapterOptions {
   apiKey: string;
-  modelName: string;
+  model: string;
   prompt: string;
   provider: string;
 }
 
 export class ModelAdapter {
   apiKey: string;
-  modelName: string;
+  model: string;
   prompt: string;
   provider: string;
-  loadedModel: new (options: {
-    apiKey: string;
-    modelName?: string;
-    prompt?: string;
-    provider?: string;
-  }) => any;
-  model: any;
+  adapter: ChatGPTAdapter | ClaudeAdapter | GeminiAdapter;
 
   readonly modelRegistry: Record<string, any> = {
-    "gpt-5": ChatGPTAdapter,
-    "gpt-5-mini": ChatGPTAdapter,
-    "gpt-5-nano": ChatGPTAdapter,
-    "gpt-5.6": ChatGPTAdapter,
-    "gpt-4.1": ChatGPTAdapter,
-    "gpt-4.1-mini": ChatGPTAdapter,
-    "gpt-4.1-nano": ChatGPTAdapter,
-    "gpt-4o": ChatGPTAdapter,
-    "gpt-4o-mini": ChatGPTAdapter,
-    o1: ChatGPTAdapter,
-    "o1-pro": ChatGPTAdapter,
-    o3: ChatGPTAdapter,
-    "o3-pro": ChatGPTAdapter,
-    "o4-mini": ChatGPTAdapter,
-    "claude-opus-4": ClaudeAdapter,
-    "claude-sonnet-4": ClaudeAdapter,
-    "claude-3.7-sonnet": ClaudeAdapter,
-    "claude-3.5-sonnet": ClaudeAdapter,
-    "claude-3.5-haiku": ClaudeAdapter,
-    "gemini-2.5-pro": GeminiAdapter,
-    "gemini-2.5-flash": GeminiAdapter,
-    "gemini-2.5-flash-lite": GeminiAdapter,
-    "gemini-2.0-flash": GeminiAdapter,
-    "gemini-2.0-flash-lite": GeminiAdapter,
+    "gpt-5": {adapter: ChatGPTAdapter, provider: 'openai' },
+    "gpt-5-mini": {adapter: ChatGPTAdapter, provider: 'openai' },
+    "gpt-5-nano": {adapter: ChatGPTAdapter, provider: 'openai' },
+    "gpt-5.6": {adapter: ChatGPTAdapter, provider: 'openai' },
+    "gpt-4.1": {adapter: ChatGPTAdapter, provider: 'openai' },
+    "gpt-4.1-mini": {adapter: ChatGPTAdapter, provider: 'openai' },
+    "gpt-4.1-nano": {adapter: ChatGPTAdapter, provider: 'openai' },
+    "gpt-4o": {adapter: ChatGPTAdapter, provider: 'openai' },
+    "gpt-4o-mini": {adapter: ChatGPTAdapter, provider: 'openai' },
+    o1: {adapter: ChatGPTAdapter, provider: 'openai' },
+    "o1-pro": {adapter: ChatGPTAdapter, provider: 'openai' },
+    o3: {adapter: ChatGPTAdapter, provider: 'openai' },
+    "o3-pro": {adapter: ChatGPTAdapter, provider: 'openai' },
+    "o4-mini": {adapter: ChatGPTAdapter, provider: 'openai' },
+    "claude-opus-4": {adapter: ClaudeAdapter, provider: 'claude' },
+    "claude-sonnet-4": {adapter: ClaudeAdapter, provider: 'claude' },
+    "claude-3.7-sonnet": {adapter: ClaudeAdapter, provider: 'claude' },
+    "claude-3.5-sonnet": {adapter: ClaudeAdapter, provider: 'claude' },
+    "claude-3.5-haiku": {adapter: ClaudeAdapter, provider: 'claude' },
+    "gemini-2.5-pro": {adapter: GeminiAdapter, provider: 'gemini' },
+    "gemini-2.5-flash": {adapter: GeminiAdapter, provider: 'gemini' },
+    "gemini-2.5-flash-lite": {adapter: GeminiAdapter, provider: 'gemini' },
+    "gemini-2.0-flash": {adapter: GeminiAdapter, provider: 'gemini' },
+    "gemini-2.0-flash-lite": {adapter: GeminiAdapter, provider: 'gemini' },
   };
 
   readonly modelPrefixRegistry: Record<string, any> = {
-    "gpt-": ChatGPTAdapter,
-    o: ChatGPTAdapter,
-    "claude-": ClaudeAdapter,
-    "gemini-": GeminiAdapter,
+    "gpt-": {adapter: ChatGPTAdapter, provider: 'openai' },
+    o: {adapter: ChatGPTAdapter, provider: 'openai' },
+    "claude-": {adapter: ClaudeAdapter, provider: 'claude' },
+    "gemini-": {adapter: GeminiAdapter, provider: 'gemini' },
   };
 
   readonly providerRegistry: Record<string, any> = {
-    gemini: GeminiAdapter,
-    openai: ChatGPTAdapter,
-    claude: ClaudeAdapter,
+    gemini: { adapter: GeminiAdapter, provider: 'gemini' },
+    google: { adapter: GeminiAdapter, provider: 'gemini' },
+    openai: { adapter: ChatGPTAdapter, provider: 'openai' },
+    oai: { adapter: ChatGPTAdapter, provider: 'openai' },
+    chatgpt: { adapter: ChatGPTAdapter, provider: 'openai' },
+    claude: { adapter: ClaudeAdapter, provider: 'claude' },
+    anthropic: { adapter: ClaudeAdapter, provider: 'claude' },
   };
 
-  constructor({ apiKey, modelName, prompt, provider }: ModelAdapterOptions) {
+  constructor({ apiKey, model, prompt, provider }: ModelAdapterOptions) {
     this.ensureAPIKey(apiKey);
-    this.ensureModelName(modelName);
+    this.ensuremodel(model);
 
     this.apiKey = apiKey;
-    this.modelName = modelName;
+    this.model = model;
     this.prompt = prompt;
     this.provider = provider;
-    this.loadedModel = this.resolveModel();
-    this.model = new this.loadedModel({
-      apiKey: this.apiKey,
-      modelName: this.modelName,
-      prompt: this.prompt,
-      provider: this.provider,
-    });
+    this.adapter = this.resolveAdapter({ model: this.model, provider: this.provider });
   }
 
   ensureAPIKey(apiKey: string) {
@@ -85,18 +77,18 @@ export class ModelAdapter {
     }
   }
 
-  ensureModelName(modelName: string) {
-    if (!modelName) {
+  ensuremodel(model: string) {
+    if (!model) {
       throw new Error("Model name is required");
     }
   }
 
   analyze(content: any) {
-    return this.model.analyze(content);
+    return this.adapter.analyze(content);
   }
 
   uploadFile(file: any) {
-    return this.model.uploadFile(file);
+    return this.adapter.uploadFile(file);
   }
 
   resolveProvider(provider: string) {
@@ -117,27 +109,40 @@ export class ModelAdapter {
     return null;
   };
 
-  resolveModel = () => {
-    const { provider, modelName } = this;
-    const modelProvider = this.providerRegistry[provider];
+  resolveAdapter = ({model, provider}: {
+    model: string;
+    provider: string;
+  }) => {
+    const normalizedModelName = (model || '').toLowerCase();
+    const { apiKey, prompt } = this;
+    const resolvedProvider = this.resolveProvider(provider);
+    let adapter;
 
-    if (modelProvider) {
-      return modelProvider;
+    if (resolvedProvider) {
+      adapter = resolvedProvider.adapter;
     }
 
-    const resolvedModel = this.modelRegistry[modelName];
+    const resolvedModel = (this.modelRegistry[normalizedModelName] || '');
 
     if (resolvedModel) {
-      return resolvedModel;
+      adapter = resolvedModel.adapter;
     }
 
-    const resolvedModelByPrefix = this.resolveModelByPrefix(modelName);
+    const resolvedModelByPrefix = this.resolveModelByPrefix(normalizedModelName);
 
     if (resolvedModelByPrefix) {
-      return resolvedModelByPrefix;
+      adapter = resolvedModelByPrefix.adapter;
     }
 
-    throw new Error(`Model "${modelName}" could not be resolved`);
+    if (adapter) {
+      return new adapter({ 
+        apiKey, 
+        model: normalizedModelName,
+        prompt, 
+      });
+    }
+
+    throw new Error(`Adapter for model "${normalizedModelName}" could not be resolved`);
   };
 }
 

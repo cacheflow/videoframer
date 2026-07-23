@@ -3,6 +3,7 @@ export interface VideoAnalyzerOptions {
   apiKey: string;
   provider: string;
   prompt: string;
+  keepFrames?: boolean;
   framesDirectory: string;
   model?: string;
   frameRate?: number;

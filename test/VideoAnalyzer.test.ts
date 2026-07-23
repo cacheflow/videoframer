@@ -1,21 +1,31 @@
 import assert from "node:assert/strict";
+import fs from "node:fs";
 import { mkdtemp, mkdir, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import test from "node:test";
+import test, { mock } from "node:test";
+import { VideoAnalyzer } from "../dist/app.js";
 
-import {
-  VideoAnalyzer,
-  type VideoAnalyzerOptions,
-  type BatchResult,
-  type InputTextContent,
-} from "../dist/app.ts";
+import type {
+  VideoAnalyzerOptions,
+  BatchResult,
+  InputTextContent,
+} from "../types/app.d.ts";
+
+mock.method(fs, "existsSync", (filePath: any) => {
+  const p = String(filePath);
+  if (p === "nonexistent.mp4" || p === "nonexistent-frames") {
+    return false;
+  }
+  return true;
+});
 
 const createAnalyzer = (overrides: Partial<VideoAnalyzerOptions> = {}) =>
   new VideoAnalyzer({
     videoPath: "/tmp/video.mp4",
     apiKey: "test-key",
     framesDirectory: "/tmp/frames",
+    apiKey: "random-key",
     ...overrides,
   });
 
@@ -195,4 +205,43 @@ test("emits and rethrows pipeline errors", async () => {
 
   await assert.rejects(analyzer.analyze(), expected);
   assert.equal(emitted, expected);
+});
+
+test("throws an error if the video file does not exist", async () => {
+  const analyzer = createAnalyzer({ videoPath: "nonexistent.mp4" });
+  await assert.rejects(
+    analyzer.analyze(),
+    /Error: Video file does not exist at path nonexistent.mp4/,
+  );
+});
+
+test("throws an error if the frames directory does not exist", async () => {
+  const analyzer = createAnalyzer({
+    videoPath: "nonexistent.mp4",
+    framesDirectory: "nonexistent-frames",
+  });
+  await assert.rejects(
+    analyzer.analyze(),
+    /Error: Frames directory does not exist at path nonexistent-frames/,
+  );
+});
+
+test("throws an error if frames directory is nullish", async () => {
+  const analyzer = createAnalyzer({
+    videoPath: "nonexistent.mp4",
+    framesDirectory: null,
+  });
+  await assert.rejects(
+    analyzer.analyze(),
+    /Error: It looks like framesDirectory is missing. You passed object/,
+  );
+
+  const secondAnalyzer = createAnalyzer({
+    videoPath: "nonexistent.mp4",
+    framesDirectory: undefined,
+  });
+  await assert.rejects(
+    secondAnalyzer.analyze(),
+    /Error: It looks like framesDirectory is missing. You passed undefined/,
+  );
 });
