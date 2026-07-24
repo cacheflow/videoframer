@@ -1,6 +1,6 @@
 {
   "name": "videoframer",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Analyze videos with multimodal AI, one frame at a time.",
   "license": "ISC",
   "author": "",
@@ -13,6 +13,10 @@
       "import": "./dist/esm/app.js"
     }
   },
+  "repository": {
+		"type": "git",
+		"url": "git+https://github.com/cacheflow/videoframer.git"
+	},
   "files": [
     "dist",
     "README.md"
