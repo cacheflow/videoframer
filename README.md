@@ -1,21 +1,30 @@
-# Videoframer
-
-Analyze video with multimodal AI, one frame at a time.
-
-Videoframer is a Node.js library that extracts chronologically ordered frames from
-a local video, groups them into batches, and sends them to OpenAI, Anthropic, or
-Google multimodal models.
+## VideoFramer
+Analyzes videos with multimodal AI one frame at a time.
+VideoFramer is a Node.js library for building AI-powered video analysis pipelines. It extracts chronologically ordered frames from local videos, batches them efficiently, and sends them to multimodal models from OpenAI, Anthropic, or Google Gemini for analysis.
+Instead of spending time writing FFmpeg pipelines and provider-specific integrations, you can focus on understanding what's happening in a video.
 
 ## Features
+🎥 Extract frames from local video files
+⏱️ Configurable frame sampling intervals
+📦 Automatic frame batching for efficient inference
+🤖 Support for OpenAI, Anthropic, and Google Gemini
+📝 Prompt-driven analysis using natural language
+📊 Chronologically ordered results
+⚡ Progress events for long-running analyses
+🔌 Simple, provider-agnostic API
 
-- Extract JPEG frames from video with FFmpeg
-- Preserve natural frame order across model requests
-- Limit frames and tune extraction rate and batch size
-- Select OpenAI, Anthropic, or Google models through one API
-- Receive typed lifecycle and progress events
-- Remove generated frames automatically or keep them for inspection
-- Import as a native ESM package
-- Use bundled TypeScript declarations
+## Use Cases
+VideoFramer can power applications such as:
+- Video summarization
+- Timeline generation
+- Scene detection
+- Event detection
+- Content moderation
+- Security camera analysis
+- Accessibility and caption generation
+- AI agent perception
+- Research and video understanding workflows
+- Custom multimodal pipelines
 
 ## Requirements
 
