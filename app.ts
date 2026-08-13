@@ -71,7 +71,6 @@ export class Videoframer extends EventEmitter {
   }
 
   analyze = async (): Promise<AnalysisResult> => {
-    const startTime = performance.now();
     const { framesDirectory, videoPath, keepFrames } = this;
 
     try {
@@ -97,37 +96,9 @@ export class Videoframer extends EventEmitter {
       await this.extractFrames();
 
       const framePaths = await this.getFramePaths();
-      const batches = this.createBatches(framePaths);
-
-      this.emit("started", {
-        startTime,
-        totalFrames: framePaths.length,
-        processedFrames: 0,
-        processedBatches: 0,
-      });
-
-      const onUpload = (result: BatchResult): void => {
-        this.emit("progress", {
-          totalFrames: framePaths.length,
-          result: result,
-          processedFrames: result.processedFrames,
-          processedBatches: result.batchIndex + 1,
-        });
-      };
-
-      const results = await this.uploadBatches({ batches, onUpload });
-      const completedAt = performance.now();
-      const completed: AnalysisResult = {
-        startTime,
-        completedAt,
-        durationMs: completedAt - startTime,
-        totalFrames: framePaths.length,
-        results,
-      };
-
-      this.emit("completed", completed);
-
-      return completed;
+      
+      return this.analyzeFrames(framePaths)
+      
     } catch (error) {
       this.emit("error", error);
       throw error;
@@ -150,10 +121,55 @@ export class Videoframer extends EventEmitter {
     }
   }
 
+  async analyzeFrames(framePaths: string[]) {
+    for(let i = 0; i < framePaths.length; i+=1) {
+      if (!fs.existsSync(framePaths[i])) {
+         throw new Error(
+          `Error: Video frame paths do not exist at path ${framePaths}`,
+        );
+      }
+    }
+    const startTime = performance.now();
+    const batches = this.createBatches(framePaths);
+
+      this.emit("started", {
+        startTime,
+        totalFrames: framePaths.length,
+        processedFrames: 0,
+        processedBatches: 0,
+      });
+
+      const onUpload = (result: BatchResult): void => {
+
+        this.emit("progress", {
+          totalFrames: framePaths.length,
+          result: result,
+          processedFrames: result.processedFrames,
+          processedBatches: result.batchIndex + 1,
+        });
+      };
+
+      const results = await this.uploadBatches({ batches, onUpload });
+      const completedAt = performance.now();
+
+      const completed: AnalysisResult = {
+        startTime,
+        completedAt,
+        durationMs: completedAt - startTime,
+        totalFrames: framePaths.length,
+        results,
+      };
+
+      this.emit("completed", completed);
+
+      return completed;
+  }
+
   async uploadBatches({
     batches,
     onUpload,
   }: UploadBatchesOptions): Promise<BatchResult[]> {
+
     const results: BatchResult[] = [];
     let frameIndex = 0;
     let processedFrameCount = 0;
@@ -185,7 +201,8 @@ export class Videoframer extends EventEmitter {
   }
 
   async prepareFramesDirectory(): Promise<void> {
-    const { framesDirectory } = this;
+    const framesDirectory = this.framesDirectory;
+
     const resolvedFramesDirectory = path.resolve(framesDirectory);
 
     if (fs.existsSync(resolvedFramesDirectory)) {
@@ -194,8 +211,10 @@ export class Videoframer extends EventEmitter {
         force: true,
       });
     }
-    
-    await fs.promises.mkdir(resolvedFramesDirectory, { recursive: true });
+
+    else {
+      await fs.promises.mkdir(resolvedFramesDirectory, { recursive: true });  
+    }
   }
 
   async extractFrames(): Promise<void> {
