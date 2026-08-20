@@ -70,7 +70,33 @@ export class Videoframer extends EventEmitter {
     }
   }
 
-  analyze = async (): Promise<AnalysisResult> => {
+  async assertSafeFramesDir(framesDirectory: string) {
+    const resolvedDirectory = path.resolve(framesDirectory);
+
+    const stats = await fs.promises.lstat(resolvedDirectory);
+
+    if (!stats.isSymbolicLink()) {
+      throw new Error(
+        `Frames directory cannot be a symbolic link: ${resolvedDirectory}`,
+      );
+    }
+
+    const cwd = await fs.promises.realpath(process.cwd());
+
+    const canonicalDirectory = await fs.promises.realpath(resolvedDirectory);
+
+    const relativeCanonicalDir = path.relative(cwd, canonicalDirectory);
+
+    const parentDir = relativeCanonicalDir === "" || relativeCanonicalDir == "..";
+    const childDir = !parentDir && !relativeCanonicalDir.startsWith(`..${path.sep}`) && !path.isAbsolute(relativeCanonicalDir);
+
+    if (!childDir) {
+      throw new Error(`Frames directory must be a child of the current working directory`);
+    }
+
+  }
+
+  analyze = async (): Promise<any> => {
     const { framesDirectory, videoPath, keepFrames } = this;
 
     try {
@@ -96,16 +122,12 @@ export class Videoframer extends EventEmitter {
       await this.extractFrames();
 
       const framePaths = await this.getFramePaths();
-      
+
       return this.analyzeFrames(framePaths)
       
     } catch (error) {
       this.emit("error", error);
       throw error;
-    } finally {
-      if (!this.keepFrames) {
-        await this.removeFramesDirectory();
-      }
     }
   };
 
@@ -203,6 +225,8 @@ export class Videoframer extends EventEmitter {
   async prepareFramesDirectory(): Promise<void> {
     const framesDirectory = this.framesDirectory;
 
+    await this.assertSafeFramesDir(framesDirectory);
+
     const resolvedFramesDirectory = path.resolve(framesDirectory);
 
     if (fs.existsSync(resolvedFramesDirectory)) {
@@ -213,12 +237,14 @@ export class Videoframer extends EventEmitter {
     }
 
     else {
+      console.log('creating')
       await fs.promises.mkdir(resolvedFramesDirectory, { recursive: true });  
+      console.log('created ', fs.existsSync(resolvedFramesDirectory), resolvedFramesDirectory)
     }
   }
 
   async extractFrames(): Promise<void> {
-    const { videoPath, framesDirectory, frameRate } = this;
+    const { videoPath, framesDirectory, frameRate, maxFrames } = this;
 
     if (!videoPath) {
       throw new Error(`Error: Video path is not set.`);
@@ -226,19 +252,27 @@ export class Videoframer extends EventEmitter {
 
     const video = await new ffmpeg(videoPath);
 
+    const videoOpts: any = {
+      frame_rate: frameRate,
+      file_name: "%01d_frame_%t_%s",
+    }
+
+    if (typeof maxFrames === 'number') {
+      videoOpts.number = maxFrames;
+    }
+
     return new Promise<void>((resolve, reject) => {
       video.fnExtractFrameToJPG(
         framesDirectory,
-        {
-          frame_rate: frameRate,
-          file_name: "%01d_frame_%t_%s",
-        },
-        (error: Error | null) => {
+        videoOpts,
+        (error: Error | null, files?: string[] | undefined) => {
           if (error) {
             this.emit("error", error.toString());
             reject(error);
             return;
           }
+
+          console.log('files are ', files)
 
           resolve();
         },
