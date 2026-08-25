@@ -221,7 +221,10 @@ test("throws an error if the video file does not exist", async () => {
 test("creates frames directory if it does not exist", async () => {
   const videoframer = createVideoframer({ framesDirectory: "./test-frames" });
   await videoframer.prepareFramesDirectory();
-  assert.ok(fs.existsSync(path.resolve("./test-frames")));
+  const resolvedFramesDirectory = path.resolve("./test-frames");
+  const dirExists = fs.existsSync(resolvedFramesDirectory);
+  
+  assert.ok(dirExists);
 });
 
 test("throws an error if frames directory is nullish", async () => {

@@ -70,8 +70,22 @@ export class Videoframer extends EventEmitter {
     }
   }
 
+  async isDirectory(path: string): Promise<boolean> {
+    try {
+      const pathStats = (await fs.promises.stat(path));
+      return pathStats.isDirectory();
+    } catch (error) {
+      return false;
+    }
+  }
+
   async assertSafeFramesDir(framesDirectory: string) {
     const resolvedDirectory = path.resolve(framesDirectory);
+    const isDirectory = await this.isDirectory(resolvedDirectory);
+
+    if (!isDirectory) {
+      await fs.promises.mkdir(resolvedDirectory);
+    }
 
     const stats = await fs.promises.lstat(resolvedDirectory);
 
@@ -84,6 +98,7 @@ export class Videoframer extends EventEmitter {
     const cwd = await fs.promises.realpath(process.cwd());
 
     const canonicalDirectory = await fs.promises.realpath(resolvedDirectory);
+
 
     const relativeCanonicalDir = path.relative(cwd, canonicalDirectory);
 
@@ -206,6 +221,7 @@ export class Videoframer extends EventEmitter {
       frameIndex = nextFrameIndex;
 
       const response = await this.createResponse(content);
+      
       processedFrameCount += uploadedFiles.length;
 
       const result: BatchResult = {
