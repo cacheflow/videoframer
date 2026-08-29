@@ -70,8 +70,48 @@ export class Videoframer extends EventEmitter {
     }
   }
 
-  analyze = async (): Promise<AnalysisResult> => {
-    const startTime = performance.now();
+  async isDirectory(path: string): Promise<boolean> {
+    try {
+      const pathStats = (await fs.promises.stat(path));
+      return pathStats.isDirectory();
+    } catch (error) {
+      return false;
+    }
+  }
+
+  async assertSafeFramesDir(framesDirectory: string) {
+    const resolvedDirectory = path.resolve(framesDirectory);
+    const isDirectory = await this.isDirectory(resolvedDirectory);
+
+    if (!isDirectory) {
+      await fs.promises.mkdir(resolvedDirectory);
+    }
+
+    const stats = await fs.promises.lstat(resolvedDirectory);
+
+    if (stats.isSymbolicLink()) {
+      throw new Error(
+        `Frames directory cannot be a symbolic link: ${resolvedDirectory}`,
+      );
+    }
+
+    const cwd = await fs.promises.realpath(process.cwd());
+
+    const canonicalDirectory = await fs.promises.realpath(resolvedDirectory);
+
+
+    const relativeCanonicalDir = path.relative(cwd, canonicalDirectory);
+
+    const parentDir = relativeCanonicalDir === "" || relativeCanonicalDir == "..";
+    const childDir = !parentDir && !relativeCanonicalDir.startsWith(`..${path.sep}`) && !path.isAbsolute(relativeCanonicalDir);
+
+    if (!childDir) {
+      throw new Error(`Frames directory must be a child of the current working directory`);
+    }
+
+  }
+
+  analyze = async (): Promise<any> => {
     const { framesDirectory, videoPath, keepFrames } = this;
 
     try {
@@ -97,44 +137,12 @@ export class Videoframer extends EventEmitter {
       await this.extractFrames();
 
       const framePaths = await this.getFramePaths();
-      const batches = this.createBatches(framePaths);
 
-      this.emit("started", {
-        startTime,
-        totalFrames: framePaths.length,
-        processedFrames: 0,
-        processedBatches: 0,
-      });
-
-      const onUpload = (result: BatchResult): void => {
-        this.emit("progress", {
-          totalFrames: framePaths.length,
-          result: result,
-          processedFrames: result.processedFrames,
-          processedBatches: result.batchIndex + 1,
-        });
-      };
-
-      const results = await this.uploadBatches({ batches, onUpload });
-      const completedAt = performance.now();
-      const completed: AnalysisResult = {
-        startTime,
-        completedAt,
-        durationMs: completedAt - startTime,
-        totalFrames: framePaths.length,
-        results,
-      };
-
-      this.emit("completed", completed);
-
-      return completed;
+      return this.analyzeFrames(framePaths)
+      
     } catch (error) {
       this.emit("error", error);
       throw error;
-    } finally {
-      if (!this.keepFrames) {
-        await this.removeFramesDirectory();
-      }
     }
   };
 
@@ -150,10 +158,55 @@ export class Videoframer extends EventEmitter {
     }
   }
 
+  async analyzeFrames(framePaths: string[]) {
+    for(let i = 0; i < framePaths.length; i+=1) {
+      if (!fs.existsSync(framePaths[i])) {
+         throw new Error(
+          `Error: Video frame paths do not exist at path ${framePaths}`,
+        );
+      }
+    }
+    const startTime = performance.now();
+    const batches = this.createBatches(framePaths);
+
+      this.emit("started", {
+        startTime,
+        totalFrames: framePaths.length,
+        processedFrames: 0,
+        processedBatches: 0,
+      });
+
+      const onUpload = (result: BatchResult): void => {
+
+        this.emit("progress", {
+          totalFrames: framePaths.length,
+          result: result,
+          processedFrames: result.processedFrames,
+          processedBatches: result.batchIndex + 1,
+        });
+      };
+
+      const results = await this.uploadBatches({ batches, onUpload });
+      const completedAt = performance.now();
+
+      const completed: AnalysisResult = {
+        startTime,
+        completedAt,
+        durationMs: completedAt - startTime,
+        totalFrames: framePaths.length,
+        results,
+      };
+
+      this.emit("completed", completed);
+
+      return completed;
+  }
+
   async uploadBatches({
     batches,
     onUpload,
   }: UploadBatchesOptions): Promise<BatchResult[]> {
+
     const results: BatchResult[] = [];
     let frameIndex = 0;
     let processedFrameCount = 0;
@@ -168,6 +221,7 @@ export class Videoframer extends EventEmitter {
       frameIndex = nextFrameIndex;
 
       const response = await this.createResponse(content);
+      
       processedFrameCount += uploadedFiles.length;
 
       const result: BatchResult = {
@@ -185,21 +239,28 @@ export class Videoframer extends EventEmitter {
   }
 
   async prepareFramesDirectory(): Promise<void> {
-    const { framesDirectory } = this;
-    const resolvedFramesDirectory = path.resolve(framesDirectory);
+    const framesDirectory = this.framesDirectory;
 
-    if (fs.existsSync(resolvedFramesDirectory)) {
+    await this.assertSafeFramesDir(framesDirectory);
+
+    const resolvedFramesDirectory = path.resolve(framesDirectory);
+    const actualDirectory = await this.isDirectory(resolvedFramesDirectory);
+
+
+    if (actualDirectory) {
       await fs.promises.rm(resolvedFramesDirectory, {
         recursive: true,
         force: true,
       });
     }
-    
-    await fs.promises.mkdir(resolvedFramesDirectory, { recursive: true });
+
+    else {
+      await fs.promises.mkdir(resolvedFramesDirectory, { recursive: true });  
+    }
   }
 
   async extractFrames(): Promise<void> {
-    const { videoPath, framesDirectory, frameRate } = this;
+    const { videoPath, framesDirectory, frameRate, maxFrames } = this;
 
     if (!videoPath) {
       throw new Error(`Error: Video path is not set.`);
@@ -207,19 +268,27 @@ export class Videoframer extends EventEmitter {
 
     const video = await new ffmpeg(videoPath);
 
+    const videoOpts: any = {
+      frame_rate: frameRate,
+      file_name: "%01d_frame_%t_%s",
+    }
+
+    if (typeof maxFrames === 'number') {
+      videoOpts.number = maxFrames;
+    }
+
     return new Promise<void>((resolve, reject) => {
       video.fnExtractFrameToJPG(
         framesDirectory,
-        {
-          frame_rate: frameRate,
-          file_name: "%01d_frame_%t_%s",
-        },
-        (error: Error | null) => {
+        videoOpts,
+        (error: Error | null, files?: string[] | undefined) => {
           if (error) {
             this.emit("error", error.toString());
             reject(error);
             return;
           }
+
+          console.log('files are ', files)
 
           resolve();
         },

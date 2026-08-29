@@ -1,5 +1,14 @@
 export type FramerateOptions = "all" | -1 | 0;
 
+
+export interface ModelAdapterOptions {
+  apiKey: string;
+  model: string;
+  prompt?: string;
+  provider: string;
+}
+
+
 export interface VideoframerOptions {
   videoPath: string;
   apiKey: string;

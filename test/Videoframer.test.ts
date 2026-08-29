@@ -221,7 +221,10 @@ test("throws an error if the video file does not exist", async () => {
 test("creates frames directory if it does not exist", async () => {
   const videoframer = createVideoframer({ framesDirectory: "./test-frames" });
   await videoframer.prepareFramesDirectory();
-  assert.ok(fs.existsSync(path.resolve("./test-frames")));
+  const resolvedFramesDirectory = path.resolve("./test-frames");
+  const dirExists = fs.existsSync(resolvedFramesDirectory);
+  
+  assert.ok(dirExists);
 });
 
 test("throws an error if frames directory is nullish", async () => {
@@ -235,3 +238,52 @@ test("throws an error if frames directory is nullish", async () => {
     /Error: It looks like framesDirectory is missing. You passed undefined/,
   );
 });
+
+test("analyzeFrames successfully processes frames and emits lifecycle events", async () => {
+  const videoframer = createVideoframer({ batchSize: 2 });
+  const events: [string, any][] = [];
+
+  videoframer.uploadBatches = async ({
+    batches,
+    onUpload,
+  }: UploadBatchesOptions): Promise<BatchResult[]> => {
+    assert.deepEqual(batches, [["1.jpg", "2.jpg"], ["3.jpg"]]);
+    onUpload?.({
+      batchIndex: 0,
+      frameCount: 2,
+      processedFrames: 2,
+      outputText: "done",
+    });
+    onUpload?.({
+      batchIndex: 1,
+      frameCount: 1,
+      processedFrames: 3,
+      outputText: "done",
+    });
+    return [
+      { batchIndex: 0, frameCount: 2, processedFrames: 2, outputText: "done" },
+      { batchIndex: 1, frameCount: 1, processedFrames: 3, outputText: "done" },
+    ];
+  };
+
+  videoframer.on("started", (payload: ProcessingStartedEvent) => events.push(["started", payload]));
+  videoframer.on("progress", (payload: ProcessingProgressEvent) => events.push(["progress", payload]));
+  videoframer.on("completed", (payload: AnalysisResult) => events.push(["completed", payload]));
+
+  const result = await videoframer.analyzeFrames(["1.jpg", "2.jpg", "3.jpg"]);
+
+  assert.equal(result.totalFrames, 3);
+  assert.equal(events.filter(([name]) => name === "started").length, 1);
+  assert.equal(events.filter(([name]) => name === "progress").length, 2);
+  assert.equal(events.at(-1)?.[0], "completed");
+});
+
+test("analyzeFrames throws an error if any of the frame paths do not exist", async () => {
+  const videoframer = createVideoframer();
+
+  await assert.rejects(
+    videoframer.analyzeFrames(["1.jpg", "nonexistent-frames"]),
+    /Error: Video frame paths do not exist at path 1.jpg,nonexistent-frames/,
+  );
+});
+
