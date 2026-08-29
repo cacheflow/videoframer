@@ -89,7 +89,7 @@ export class Videoframer extends EventEmitter {
 
     const stats = await fs.promises.lstat(resolvedDirectory);
 
-    if (!stats.isSymbolicLink()) {
+    if (stats.isSymbolicLink()) {
       throw new Error(
         `Frames directory cannot be a symbolic link: ${resolvedDirectory}`,
       );
@@ -244,8 +244,10 @@ export class Videoframer extends EventEmitter {
     await this.assertSafeFramesDir(framesDirectory);
 
     const resolvedFramesDirectory = path.resolve(framesDirectory);
+    const actualDirectory = await this.isDirectory(resolvedFramesDirectory);
 
-    if (fs.existsSync(resolvedFramesDirectory)) {
+
+    if (actualDirectory) {
       await fs.promises.rm(resolvedFramesDirectory, {
         recursive: true,
         force: true,
@@ -253,9 +255,7 @@ export class Videoframer extends EventEmitter {
     }
 
     else {
-      console.log('creating')
       await fs.promises.mkdir(resolvedFramesDirectory, { recursive: true });  
-      console.log('created ', fs.existsSync(resolvedFramesDirectory), resolvedFramesDirectory)
     }
   }
 
